@@ -1,0 +1,343 @@
+﻿using System;
+using System.Windows;
+using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Media3D;
+using System.Windows.Controls;
+using System.Collections.Generic;
+using RotatableDie.Models;
+using RotatableDie.Services;
+
+namespace RotatableDie.UI
+{
+    /// <summary>
+    /// Handles visualization and interaction with the 3D die
+    /// </summary>
+    public class DieVisualizer
+    {
+        private readonly Viewport3D _viewport;
+        private readonly DieFactory _dieFactory;
+        
+        private Point _lastMousePosition;
+        private bool _isDragging = false;
+        
+        // Rotation in screen space - these are always aligned with the view
+        private Vector3D _screenXAxis = new Vector3D(1, 0, 0);
+        private Vector3D _screenYAxis = new Vector3D(0, 1, 0);
+        
+        // Separate rotation transforms for tracking angles for UI purposes
+        private double _rotationAngleX = 0;
+        private double _rotationAngleY = 0;
+        private double _rotationAngleZ = 0;
+        
+        // The actual transform applied to the model
+        private QuaternionRotation3D _rotationQuaternion;
+        private ModelVisual3D _dieVisual;
+        
+        // Threshold for determining movement direction
+        private const double MOVEMENT_THRESHOLD = 2.5;
+        private const double MINIMUM_MOVEMENT = 0.5;
+        private const int MOVEMENT_HISTORY_SIZE = 5;
+        
+        // Movement history tracking
+        private Queue<Vector> _movementHistory = new Queue<Vector>();
+        private MovementIntent _currentIntent = MovementIntent.None;
+        
+        private enum MovementIntent
+        {
+            None,
+            Vertical,
+            Horizontal,
+            Diagonal
+        }
+        
+        public DieVisualizer(Viewport3D viewport, DieFactory dieFactory)
+        {
+            _viewport = viewport;
+            _dieFactory = dieFactory;
+            
+            // Initialize rotation quaternion with identity (no rotation)
+            _rotationQuaternion = new QuaternionRotation3D(new Quaternion(0, 0, 0, 1));
+            
+            // Create the die visual container
+            _dieVisual = new ModelVisual3D();
+            _viewport.Children.Add(_dieVisual);
+            
+            // Set up mouse event handlers
+            _viewport.MouseDown += Viewport_MouseDown;
+            _viewport.MouseMove += Viewport_MouseMove;
+            _viewport.MouseUp += Viewport_MouseUp;
+        }
+        
+        /// <summary>
+        /// Creates and renders a die with the specified type and color
+        /// </summary>
+        public void CreateDie(DieType dieType, Color color)
+        {
+            // Clear the current die visual content
+            _dieVisual.Content = null;
+            
+            // Force UI update
+            _viewport.InvalidateVisual();
+            
+            // Create a new model group for the die
+            Model3DGroup dieModelGroup = new Model3DGroup();
+            
+            // Create solid based on selected type
+            Die die = _dieFactory.CreateDie(dieType);
+            die.CreateGeometry(dieModelGroup, color);
+            
+            // Apply the current quaternion rotation
+            Transform3DGroup transformGroup = new Transform3DGroup();
+            transformGroup.Children.Add(new RotateTransform3D(_rotationQuaternion));
+            
+            // Apply the transforms to the model
+            dieModelGroup.Transform = transformGroup;
+            
+            // Set the content of the die visual
+            _dieVisual.Content = dieModelGroup;
+        }
+        
+        private void Viewport_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.LeftButton == MouseButtonState.Pressed || e.RightButton == MouseButtonState.Pressed)
+            {
+                _isDragging = true;
+                _lastMousePosition = e.GetPosition(_viewport);
+                
+                // Reset movement tracking on new drag
+                _movementHistory.Clear();
+                _currentIntent = MovementIntent.None;
+                
+                // Capture mouse to continue getting events even when outside the viewport
+                Mouse.Capture(_viewport);
+            }
+        }
+        
+        private void Viewport_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (_isDragging)
+            {
+                Point currentMousePosition = e.GetPosition(_viewport);
+                
+                // Calculate the difference in position
+                double deltaX = currentMousePosition.X - _lastMousePosition.X;
+                double deltaY = currentMousePosition.Y - _lastMousePosition.Y;
+                
+                // Left button: X and Y axis rotation in screen space
+                if (e.LeftButton == MouseButtonState.Pressed)
+                {
+                    // Get absolute deltas for direction comparison
+                    double absDeltaX = Math.Abs(deltaX);
+                    double absDeltaY = Math.Abs(deltaY);
+                    
+                    // Skip processing for very tiny movements (likely unintentional)
+                    if (absDeltaX < 0.1 && absDeltaY < 0.1)
+                    {
+                        _lastMousePosition = currentMousePosition;
+                        return;
+                    }
+                    
+                    // Record this movement vector for intent tracking
+                    Vector movement = new Vector(deltaX, deltaY);
+                    UpdateMovementHistory(movement);
+                    
+                    // Analyze current movement intent based on recent history
+                    MovementIntent newIntent = AnalyzeMovementIntent();
+                    
+                    // If we have a clear new intent or if the intent has changed
+                    if (newIntent != MovementIntent.None && (_currentIntent == MovementIntent.None || newIntent != _currentIntent))
+                    {
+                        _currentIntent = newIntent;
+                    }
+                    
+                    // Convert mouse movements to rotation angles (in radians for quaternion math)
+                    double angleX = 0;
+                    double angleY = 0;
+                    
+                    // Apply rotations based on current intent
+                    switch (_currentIntent)
+                    {
+                        case MovementIntent.Vertical:
+                            // Only rotate around screen X axis
+                            angleX = deltaY * 0.01; // Convert to radians and scale
+                            _rotationAngleX += deltaY * 0.5; // Track angles in degrees for UI
+                            break;
+                            
+                        case MovementIntent.Horizontal:
+                            // Only rotate around screen Y axis
+                            angleY = deltaX * 0.01; // Convert to radians and scale
+                            _rotationAngleY += deltaX * 0.5; // Track angles in degrees for UI
+                            break;
+                            
+                        case MovementIntent.Diagonal:
+                            // Apply both rotations
+                            angleX = deltaY * 0.01;
+                            angleY = deltaX * 0.01;
+                            _rotationAngleX += deltaY * 0.5;
+                            _rotationAngleY += deltaX * 0.5;
+                            break;
+                            
+                        case MovementIntent.None:
+                            // First movement or unclear intent - use a stricter single-movement check
+                            if (absDeltaY > MOVEMENT_THRESHOLD * absDeltaX && absDeltaY > MINIMUM_MOVEMENT)
+                            {
+                                angleX = deltaY * 0.01; // Vertical movement only
+                                _rotationAngleX += deltaY * 0.5;
+                            }
+                            else if (absDeltaX > MOVEMENT_THRESHOLD * absDeltaY && absDeltaX > MINIMUM_MOVEMENT)
+                            {
+                                angleY = deltaX * 0.01; // Horizontal movement only
+                                _rotationAngleY += deltaX * 0.5;
+                            }
+                            else if (absDeltaX > MINIMUM_MOVEMENT && absDeltaY > MINIMUM_MOVEMENT)
+                            {
+                                // Both axes have significant movement
+                                angleX = deltaY * 0.01;
+                                angleY = deltaX * 0.01;
+                                _rotationAngleX += deltaY * 0.5;
+                                _rotationAngleY += deltaX * 0.5;
+                            }
+                            break;
+                    }
+                    
+                    // Apply rotation around screen space axes using quaternions
+                    if (Math.Abs(angleX) > 0.0001 || Math.Abs(angleY) > 0.0001)
+                    {
+                        // Create rotation quaternions for each axis
+                        Quaternion rotX = new Quaternion(_screenXAxis, angleX * 180 / Math.PI);
+                        // The negative sign is actually needed for correct rotation direction
+                        Quaternion rotY = new Quaternion(_screenYAxis, -angleY * 180 / Math.PI);
+                        
+                        // Combine the rotations (current * X * Y)
+                        Quaternion currentRotation = _rotationQuaternion.Quaternion;
+                        Quaternion newRotation = Quaternion.Multiply(Quaternion.Multiply(currentRotation, rotX), rotY);
+                        
+                        // Update the model's rotation
+                        _rotationQuaternion.Quaternion = newRotation;
+                        
+                        // Update the model
+                        if (_dieVisual.Content is Model3DGroup modelGroup && 
+                            modelGroup.Transform is Transform3DGroup transformGroup && 
+                            transformGroup.Children.Count > 0 && 
+                            transformGroup.Children[0] is RotateTransform3D rotateTransform)
+                        {
+                            rotateTransform.Rotation = _rotationQuaternion;
+                        }
+                    }
+                }
+                
+                // Right mouse button: Z axis rotation around the screen normal
+                if (e.RightButton == MouseButtonState.Pressed)
+                {
+                    // Calculate rotation based on movement relative to center of viewport
+                    Point viewportCenter = new Point(_viewport.ActualWidth / 2, _viewport.ActualHeight / 2);
+                    Point previousVector = new Point(_lastMousePosition.X - viewportCenter.X, _lastMousePosition.Y - viewportCenter.Y);
+                    Point currentVector = new Point(currentMousePosition.X - viewportCenter.X, currentMousePosition.Y - viewportCenter.Y);
+                    
+                    // Skip tiny movements to avoid erratic rotation
+                    double prevMagnitude = Math.Sqrt(previousVector.X * previousVector.X + previousVector.Y * previousVector.Y);
+                    double currMagnitude = Math.Sqrt(currentVector.X * currentVector.X + currentVector.Y * currentVector.Y);
+                    
+                    if (prevMagnitude > 5 && currMagnitude > 5) // Minimum threshold to detect intentional movement
+                    {
+                        // Calculate the angle between previous and current vectors (cross product)
+                        double crossProduct = previousVector.X * currentVector.Y - previousVector.Y * currentVector.X;
+                        
+                        // Significant increase in rotation factor for faster Z-axis rotation
+                        double rotationFactor = 0.2; // Increased to 0.2 for more responsive Z rotation
+                        double angleZ = -(crossProduct / (prevMagnitude * currMagnitude)) * rotationFactor;
+                        
+                        // Track Z rotation for UI
+                        _rotationAngleZ -= (crossProduct / (prevMagnitude * currMagnitude)) * rotationFactor * 50;
+                        
+                        // Screen Z axis is pointing into the screen
+                        Vector3D screenZAxis = new Vector3D(0, 0, 1);
+                        
+                        // Create quaternion for Z rotation
+                        Quaternion rotZ = new Quaternion(screenZAxis, angleZ * 180 / Math.PI);
+                        
+                        // Combine with current rotation
+                        Quaternion currentRotation = _rotationQuaternion.Quaternion;
+                        Quaternion newRotation = Quaternion.Multiply(currentRotation, rotZ);
+                        
+                        // Update the model's rotation
+                        _rotationQuaternion.Quaternion = newRotation;
+                        
+                        // Update the model
+                        if (_dieVisual.Content is Model3DGroup modelGroup && 
+                            modelGroup.Transform is Transform3DGroup transformGroup && 
+                            transformGroup.Children.Count > 0 && 
+                            transformGroup.Children[0] is RotateTransform3D rotateTransform)
+                        {
+                            rotateTransform.Rotation = _rotationQuaternion;
+                        }
+                    }
+                }
+                
+                // Save the current position for the next move event
+                _lastMousePosition = currentMousePosition;
+            }
+        }
+        
+        private void UpdateMovementHistory(Vector movement)
+        {
+            _movementHistory.Enqueue(movement);
+            
+            // Keep only the most recent movements
+            while (_movementHistory.Count > MOVEMENT_HISTORY_SIZE)
+            {
+                _movementHistory.Dequeue();
+            }
+        }
+        
+        private MovementIntent AnalyzeMovementIntent()
+        {
+            if (_movementHistory.Count < 3) // Need at least a few samples to determine intent
+                return MovementIntent.None;
+            
+            // Analyze the movement vectors to determine dominant direction
+            double totalDeltaX = 0;
+            double totalDeltaY = 0;
+            
+            foreach (Vector movement in _movementHistory)
+            {
+                totalDeltaX += Math.Abs(movement.X);
+                totalDeltaY += Math.Abs(movement.Y);
+            }
+            
+            // Calculate average to smooth out jitter
+            double avgDeltaX = totalDeltaX / _movementHistory.Count;
+            double avgDeltaY = totalDeltaY / _movementHistory.Count;
+            
+            // Determine movement intent based on the average movement
+            if (avgDeltaY > MOVEMENT_THRESHOLD * avgDeltaX && avgDeltaY > MINIMUM_MOVEMENT)
+            {
+                return MovementIntent.Vertical;
+            }
+            else if (avgDeltaX > MOVEMENT_THRESHOLD * avgDeltaY && avgDeltaX > MINIMUM_MOVEMENT)
+            {
+                return MovementIntent.Horizontal;
+            }
+            else if (avgDeltaX > MINIMUM_MOVEMENT && avgDeltaY > MINIMUM_MOVEMENT)
+            {
+                return MovementIntent.Diagonal;
+            }
+            
+            return MovementIntent.None;
+        }
+        
+        private void Viewport_MouseUp(object sender, MouseButtonEventArgs e)
+        {
+            if (e.LeftButton == MouseButtonState.Released && e.RightButton == MouseButtonState.Released)
+            {
+                _isDragging = false;
+                _currentIntent = MovementIntent.None;
+                _movementHistory.Clear();
+                
+                // Release mouse capture
+                Mouse.Capture(null);
+            }
+        }
+    }
+}

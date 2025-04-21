@@ -1,0 +1,250 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Media;
+using RotatableDie.Converters;
+using RotatableDie.Models;
+
+namespace RotatableDie.UI
+{
+    /// <summary>
+    /// Manages UI controls for the die application
+    /// </summary>
+    public class UIControlsManager
+    {
+        private readonly Window _window;
+        private ComboBox? _colorComboBox;
+        
+        public event EventHandler<DieTypeChangedEventArgs>? DieTypeChanged;
+        public event EventHandler<ColorChangedEventArgs>? ColorChanged;
+        
+        public UIControlsManager(Window window)
+        {
+            _window = window;
+        }
+        
+        public void SetupControls()
+        {
+            AddDieTypeComboBox();
+            PopulateColorComboBox();
+        }
+        
+        private void AddDieTypeComboBox()
+        {
+            // Create the ComboBox
+            ComboBox dieTypeComboBox = new ComboBox
+            {
+                Width = 120,
+                Margin = new Thickness(0, 0, 20, 0),
+                Name = "dieTypeComboBox"
+            };
+            dieTypeComboBox.SelectionChanged += DieTypeComboBox_SelectionChanged;
+
+            // Add the label
+            TextBlock label = new TextBlock
+            {
+                Text = "Die Type:",
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 10, 0)
+            };
+
+            // Get the StackPanel from XAML
+            StackPanel? controlPanel = _window.FindName("controlPanel") as StackPanel;
+            
+            // If the panel doesn't exist, we need to create and add it to the Grid
+            if (controlPanel == null)
+            {
+                controlPanel = new StackPanel
+                {
+                    Orientation = Orientation.Horizontal,
+                    Margin = new Thickness(10, 5, 10, 5),
+                    Name = "controlPanel" // Add a name to make it findable
+                };
+                
+                Grid? mainGrid = _window.Content as Grid;
+                if (mainGrid != null)
+                {
+                    controlPanel.SetValue(Grid.RowProperty, 0);
+                    
+                    // Look for existing panel with color controls
+                    StackPanel? existingPanel = null;
+                    foreach (UIElement element in mainGrid.Children)
+                    {
+                        if (element is StackPanel sp && 
+                            sp.Children.Count > 0 && 
+                            sp.Children[0] is TextBlock tb && 
+                            tb.Text == "Die Color:")
+                        {
+                            existingPanel = sp;
+                            break;
+                        }
+                    }
+                    
+                    // Add our controls first
+                    controlPanel.Children.Add(label);
+                    controlPanel.Children.Add(dieTypeComboBox);
+                    
+                    // Then create new instances of the existing controls instead of reusing them
+                    if (existingPanel != null)
+                    {
+                        // Create a new color label
+                        TextBlock colorLabel = new TextBlock
+                        {
+                            Text = "Die Color:",
+                            VerticalAlignment = VerticalAlignment.Center,
+                            Margin = new Thickness(0, 0, 10, 0)
+                        };
+                        controlPanel.Children.Add(colorLabel);
+                        
+                        // Create and setup a new color ComboBox
+                        ComboBox newColorComboBox = new ComboBox
+                        {
+                            Width = 120,
+                            Margin = new Thickness(0, 0, 0, 0),
+                            Name = "colorComboBox" 
+                        };
+                        
+                        // Register the color selection event handler
+                        newColorComboBox.SelectionChanged += ColorComboBox_SelectionChanged;
+                        
+                        controlPanel.Children.Add(newColorComboBox);
+                        
+                        // Remove the old panel
+                        mainGrid.Children.Remove(existingPanel);
+                        
+                        // Remember the ComboBox for later
+                        _colorComboBox = newColorComboBox;
+                    }
+                    
+                    mainGrid.Children.Add(controlPanel);
+                }
+            }
+            else
+            {
+                // Insert at the beginning
+                controlPanel.Children.Insert(0, label);
+                controlPanel.Children.Insert(1, dieTypeComboBox);
+            }
+            
+            // Populate the ComboBox
+            var dieTypes = Enum.GetValues<DieType>()
+                .Select(type => new DieTypeItem { Type = type, Name = type.ToString() })
+                .ToList();
+                
+            dieTypeComboBox.DisplayMemberPath = "Name";
+            dieTypeComboBox.ItemsSource = dieTypes;
+            dieTypeComboBox.SelectedIndex = 1; // Default to Cube
+        }
+
+        private void PopulateColorComboBox()
+        {
+            if (_colorComboBox == null) 
+            {
+                _colorComboBox = _window.FindName("colorComboBox") as ComboBox;
+            }
+            
+            if (_colorComboBox == null) return;
+            
+            // Create a simple list of colors
+            List<SolidColorBrush> colors = new List<SolidColorBrush>
+            {
+                new SolidColorBrush(Colors.White),
+                new SolidColorBrush(Colors.Black),
+                new SolidColorBrush(Colors.Red),
+                new SolidColorBrush(Colors.Green),
+                new SolidColorBrush(Colors.Blue),
+                new SolidColorBrush(Colors.Yellow),
+                new SolidColorBrush(Colors.Orange),
+                new SolidColorBrush(Colors.Purple),
+                new SolidColorBrush(Colors.Pink),
+                new SolidColorBrush(Colors.Cyan),
+                new SolidColorBrush(Colors.Brown),
+                new SolidColorBrush(Colors.Gray),
+                new SolidColorBrush(Colors.Silver),
+                new SolidColorBrush(Color.FromRgb(255, 215, 0)), // Gold
+                new SolidColorBrush(Colors.Lime),
+                new SolidColorBrush(Colors.Teal),
+                new SolidColorBrush(Colors.Indigo),
+                new SolidColorBrush(Colors.Violet),
+                new SolidColorBrush(Colors.Magenta),
+                new SolidColorBrush(Colors.Navy),
+                new SolidColorBrush(Colors.Olive),
+                new SolidColorBrush(Colors.Maroon),
+                new SolidColorBrush(Color.FromRgb(64, 224, 208)), // Turquoise
+                new SolidColorBrush(Colors.Coral),
+                new SolidColorBrush(Colors.Crimson),
+                new SolidColorBrush(Colors.SlateBlue),
+                new SolidColorBrush(Colors.ForestGreen),
+                new SolidColorBrush(Colors.DeepPink),
+                new SolidColorBrush(Colors.Khaki),
+                new SolidColorBrush(Colors.SteelBlue)
+            };
+
+            // Create the item template for ComboBox
+            DataTemplate template = new DataTemplate();
+            FrameworkElementFactory stackPanel = new FrameworkElementFactory(typeof(StackPanel));
+            stackPanel.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
+            
+            FrameworkElementFactory border = new FrameworkElementFactory(typeof(Border));
+            border.SetValue(Border.WidthProperty, 16.0);
+            border.SetValue(Border.HeightProperty, 16.0);
+            border.SetValue(Border.MarginProperty, new Thickness(0, 0, 5, 0));
+            border.SetValue(Border.BorderBrushProperty, new SolidColorBrush(Colors.Gray));
+            border.SetValue(Border.BorderThicknessProperty, new Thickness(1));
+            border.SetBinding(Border.BackgroundProperty, new Binding("."));
+            
+            FrameworkElementFactory textBlock = new FrameworkElementFactory(typeof(TextBlock));
+            textBlock.SetBinding(TextBlock.TextProperty, new Binding(".") { Converter = new BrushToColorNameConverter() });
+            textBlock.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
+            
+            stackPanel.AppendChild(border);
+            stackPanel.AppendChild(textBlock);
+            
+            template.VisualTree = stackPanel;
+            
+            // Apply to ComboBox
+            _colorComboBox.ItemTemplate = template;
+            _colorComboBox.ItemsSource = colors;
+            _colorComboBox.SelectedIndex = 0;
+        }
+        
+        private void ColorComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (sender is ComboBox comboBox && comboBox.SelectedItem is SolidColorBrush brush)
+            {
+                ColorChanged?.Invoke(this, new ColorChangedEventArgs(brush.Color));
+            }
+        }
+
+        private void DieTypeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (sender is ComboBox comboBox && comboBox.SelectedItem is DieTypeItem item)
+            {
+                DieTypeChanged?.Invoke(this, new DieTypeChangedEventArgs(item.Type));
+            }
+        }
+    }
+    
+    public class DieTypeChangedEventArgs : EventArgs
+    {
+        public DieType DieType { get; }
+        
+        public DieTypeChangedEventArgs(DieType dieType)
+        {
+            DieType = dieType;
+        }
+    }
+    
+    public class ColorChangedEventArgs : EventArgs
+    {
+        public Color Color { get; }
+        
+        public ColorChangedEventArgs(Color color)
+        {
+            Color = color;
+        }
+    }
+}

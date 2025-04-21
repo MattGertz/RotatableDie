@@ -1,0 +1,504 @@
+﻿using System;
+using System.Windows;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using System.Globalization;
+using RotatableDie.Models;
+
+namespace RotatableDie.Services
+{
+    /// <summary>
+    /// Service for creating and managing die textures
+    /// </summary>
+    public class DieTextureService
+    {
+        private readonly Random random = new Random();
+        private const int TEXTURE_SIZE = 512;
+        private const int TETRAHEDRON_TEXTURE_SIZE = 768; // Larger texture for more detailed vertex labeling
+        
+        /// <summary>
+        /// Creates a texture with a number for a die face
+        /// </summary>
+        public BitmapImage CreateDieTexture(int number, Color baseColor, DieType dieType, int outputSize = 256)
+        {
+            // For the tetrahedron (d4), we need special textures with numbers at vertices
+            if (dieType == DieType.Tetrahedron)
+            {
+                return CreateTetrahedronVertexTexture(number, baseColor);
+            }
+
+            // Create a bitmap that we'll draw onto
+            RenderTargetBitmap renderBitmap = new RenderTargetBitmap(outputSize, outputSize, 96, 96, PixelFormats.Pbgra32);
+            
+            // Create a visual to draw on
+            DrawingVisual drawingVisual = new DrawingVisual();
+            
+            // Adjust font size based on die type and number
+            double fontSizeFactor = 0.5; // Default for d6
+            
+            // Reduce font size for double digit numbers on polyhedral dice
+            if (number > 9)
+            {
+                fontSizeFactor = 0.4;
+            }
+            
+            // Further adjust based on die type
+            switch (dieType)
+            {
+                case DieType.Icosahedron:
+                    fontSizeFactor *= 0.8; // Smaller for d20
+                    break;
+                case DieType.Dodecahedron:
+                    fontSizeFactor *= 0.85; // Smaller for d12
+                    break;
+                case DieType.Tetrahedron:
+                    fontSizeFactor *= 0.9; // Slightly smaller for d4
+                    break;
+                case DieType.Octahedron:
+                    fontSizeFactor *= 0.9; // Slightly smaller for d8
+                    break;
+            }
+            
+            using (DrawingContext drawingContext = drawingVisual.RenderOpen())
+            {
+                // Create base color with slightly darker edges
+                Color edgeColor = ColorUtilities.DarkenColor(baseColor, 0.8);
+                
+                // Draw base color as gradient from edge to center
+                RadialGradientBrush baseBrush = new RadialGradientBrush();
+                baseBrush.GradientOrigin = new Point(0.5, 0.5);
+                baseBrush.Center = new Point(0.5, 0.5);
+                baseBrush.RadiusX = 0.7;
+                baseBrush.RadiusY = 0.7;
+                baseBrush.GradientStops.Add(new GradientStop(baseColor, 0.6));
+                baseBrush.GradientStops.Add(new GradientStop(edgeColor, 1.0));
+                
+                drawingContext.DrawRectangle(baseBrush, null, new Rect(0, 0, outputSize, outputSize));
+                
+                // Add random blotches
+                int numBlotches = random.Next(10, 25);
+                for (int i = 0; i < numBlotches; i++)
+                {
+                    // Determine blotch properties
+                    double x = random.NextDouble() * outputSize;
+                    double y = random.NextDouble() * outputSize;
+                    double size = random.Next(5, 20);
+                    
+                    // Use the contrast algorithm to decide blotch color
+                    // If background is dark, use gold for better contrast
+                    // If background is light, use dark gray for better contrast
+                    Color blotchColor;
+                    if (ColorUtilities.GetRelativeLuminance(baseColor) < 0.5) // Dark background
+                    {
+                        blotchColor = Color.FromRgb(255, 215, 0); // Gold
+                    }
+                    else // Light background
+                    {
+                        blotchColor = Color.FromRgb(64, 64, 64); // Dark gray
+                    }
+                    
+                    // Draw the blotch
+                    RadialGradientBrush blotchBrush = new RadialGradientBrush();
+                    blotchBrush.GradientOrigin = new Point(0.5, 0.5);
+                    blotchBrush.Center = new Point(0.5, 0.5);
+                    blotchBrush.RadiusX = 1.0;
+                    blotchBrush.RadiusY = 1.0;
+                    blotchBrush.GradientStops.Add(new GradientStop(blotchColor, 0.0));
+                    blotchBrush.GradientStops.Add(new GradientStop(Color.FromArgb(0, blotchColor.R, blotchColor.G, blotchColor.B), 1.0));
+                    
+                    drawingContext.DrawEllipse(blotchBrush, null, new Point(x, y), size, size);
+                }
+                
+                // Add subtle texture
+                drawingContext.PushOpacity(0.1);
+                for (int i = 0; i < 200; i++)
+                {
+                    double x = random.NextDouble() * outputSize;
+                    double y = random.NextDouble() * outputSize;
+                    double size = random.NextDouble() * 2 + 0.5;
+                    
+                    // Use the contrast-based color selection here too
+                    Color dotColor = ColorUtilities.GetRelativeLuminance(baseColor) < 0.5 ? 
+                        Color.FromRgb(255, 215, 0) : // Gold for dark backgrounds
+                        Color.FromRgb(64, 64, 64);   // Dark gray for light backgrounds
+                    
+                    drawingContext.DrawEllipse(
+                        new SolidColorBrush(dotColor), 
+                        null, 
+                        new Point(x, y), 
+                        size, 
+                        size);
+                }
+                drawingContext.Pop();
+                
+                // Choose the best text color for maximum contrast
+                Color textColor = ColorUtilities.GetOptimalTextColor(baseColor);
+                SolidColorBrush textBrush = new SolidColorBrush(textColor);
+                
+                // Draw the number as text
+                drawingContext.PushOpacity(0.9);
+                
+                // Create the text with adjusted font size
+                FormattedText formattedText = new FormattedText(
+                    number.ToString(),
+                    CultureInfo.InvariantCulture,
+                    FlowDirection.LeftToRight,
+                    new Typeface(new FontFamily("Times New Roman"), FontStyles.Normal, FontWeights.Bold, FontStretches.Normal),
+                    outputSize * fontSizeFactor, // Use the adjusted factor for font size
+                    textBrush,
+                    1.0);
+
+                // Position the text based on the die type
+                double textX = (outputSize - formattedText.Width) / 2; // Horizontally centered
+                double textY;
+
+                if (dieType == DieType.Tetrahedron || 
+                    dieType == DieType.Octahedron || 
+                    dieType == DieType.Icosahedron)
+                {
+                    // For triangular-faced dice, position text at the centroid:
+                    // The centroid is at 2/3 of the height from the top
+                    // (or 1/3 of the height from the bottom)
+                    double triangleCentroidY = outputSize * (2.0/3.0);
+                    
+                    // Position the text so its center is at the centroid
+                    textY = triangleCentroidY - (formattedText.Height / 2);
+                }
+                else
+                {
+                    // For other dice shapes, center the text vertically
+                    textY = (outputSize - formattedText.Height) / 2;
+                }
+                
+                // Calculate shadow color directly
+                Color shadowColor;
+                if (textColor.R == 0 && textColor.G == 0 && textColor.B == 0)
+                {
+                    // For black text, use a semi-transparent dark gray shadow
+                    shadowColor = Color.FromArgb(80, 60, 60, 60); 
+                }
+                else
+                {
+                    // For white or light text, use a semi-transparent light gray shadow
+                    shadowColor = Color.FromArgb(80, 200, 200, 200);
+                }
+                
+                // Add a shadow effect with reduced offset for d20
+                double shadowOffset = outputSize * 0.01;
+                if (dieType == DieType.Icosahedron) 
+                {
+                    shadowOffset = outputSize * 0.005; // Smaller shadow offset for d20
+                }
+
+                // Create the shadow text with the same font family as the main text
+                FormattedText shadowText = new FormattedText(
+                    number.ToString(),
+                    CultureInfo.InvariantCulture,
+                    FlowDirection.LeftToRight,
+                    new Typeface(new FontFamily("Times New Roman"), FontStyles.Normal, FontWeights.Bold, FontStretches.Normal),
+                    outputSize * fontSizeFactor,
+                    new SolidColorBrush(shadowColor),
+                    1.0);
+
+                drawingContext.DrawText(shadowText, new Point(textX + shadowOffset, textY + shadowOffset));
+                
+                // Draw the main text
+                drawingContext.DrawText(formattedText, new Point(textX, textY));
+                
+                // For d12 and d20, add underlines to 6 and 9 for orientation
+                if ((dieType == DieType.Dodecahedron || dieType == DieType.Icosahedron) && 
+                    (number == 6 || number == 9))
+                {
+                    double underlineThickness = Math.Max(2.0, outputSize * 0.01); // Scale with die size, minimum 2px
+                    double underlineWidth = formattedText.Width * 0.8; // 80% of number width
+                    double underlineY = textY + formattedText.Height + underlineThickness; // Just below the number
+                    double underlineX = textX + (formattedText.Width - underlineWidth) / 2; // Centered under number
+
+                    // Draw underline
+                    drawingContext.DrawLine(
+                        new Pen(textBrush, underlineThickness), 
+                        new Point(underlineX, underlineY), 
+                        new Point(underlineX + underlineWidth, underlineY));
+                }
+                
+                drawingContext.Pop();
+            }
+            
+            // Render the drawing onto the bitmap
+            renderBitmap.Render(drawingVisual);
+            
+            // Convert to BitmapImage for use with ImageBrush
+            BitmapImage bitmapImage = new BitmapImage();
+            PngBitmapEncoder encoder = new PngBitmapEncoder();
+            encoder.Frames.Add(BitmapFrame.Create(renderBitmap));
+            
+            using (System.IO.MemoryStream memoryStream = new System.IO.MemoryStream())
+            {
+                encoder.Save(memoryStream);
+                memoryStream.Position = 0;
+                
+                bitmapImage.BeginInit();
+                bitmapImage.CacheOption = BitmapCacheOption.OnLoad;
+                bitmapImage.StreamSource = memoryStream;
+                bitmapImage.EndInit();
+                bitmapImage.Freeze(); // Make it thread-safe
+            }
+            
+            return bitmapImage;
+        }
+
+        /// <summary>
+        /// Creates a texture for a d4 (tetrahedron) face with vertex-oriented numbers
+        /// </summary>
+        private BitmapImage CreateTetrahedronVertexTexture(int faceNumber, Color baseColor)
+        {
+            RenderTargetBitmap renderBitmap = new RenderTargetBitmap(
+                TETRAHEDRON_TEXTURE_SIZE,
+                TETRAHEDRON_TEXTURE_SIZE,
+                96, 96,
+                PixelFormats.Pbgra32);
+                
+            DrawingVisual drawingVisual = new DrawingVisual();
+            using (DrawingContext drawingContext = drawingVisual.RenderOpen())
+            {
+                // Create base color with slightly darker edges
+                Color edgeColor = ColorUtilities.DarkenColor(baseColor, 0.8);
+                
+                // Draw base color as gradient from edge to center
+                RadialGradientBrush baseBrush = new RadialGradientBrush();
+                baseBrush.GradientOrigin = new Point(0.5, 0.5);
+                baseBrush.Center = new Point(0.5, 0.5);
+                baseBrush.RadiusX = 0.7;
+                baseBrush.RadiusY = 0.7;
+                baseBrush.GradientStops.Add(new GradientStop(baseColor, 0.6));
+                baseBrush.GradientStops.Add(new GradientStop(edgeColor, 1.0));
+                
+                Rect backgroundRect = new Rect(0, 0, TETRAHEDRON_TEXTURE_SIZE, TETRAHEDRON_TEXTURE_SIZE);
+                drawingContext.DrawRectangle(baseBrush, null, backgroundRect);
+                
+                // Add random blotches
+                int numBlotches = random.Next(10, 25);
+                for (int i = 0; i < numBlotches; i++)
+                {
+                    // Determine blotch properties
+                    double x = random.NextDouble() * TETRAHEDRON_TEXTURE_SIZE;
+                    double y = random.NextDouble() * TETRAHEDRON_TEXTURE_SIZE;
+                    double size = random.Next(5, 20);
+                    
+                    // Use the contrast algorithm to decide blotch color
+                    Color blotchColor;
+                    if (ColorUtilities.GetRelativeLuminance(baseColor) < 0.5) // Dark background
+                    {
+                        blotchColor = Color.FromRgb(255, 215, 0); // Gold
+                    }
+                    else // Light background
+                    {
+                        blotchColor = Color.FromRgb(64, 64, 64); // Dark gray
+                    }
+                    
+                    // Draw the blotch
+                    RadialGradientBrush blotchBrush = new RadialGradientBrush();
+                    blotchBrush.GradientOrigin = new Point(0.5, 0.5);
+                    blotchBrush.Center = new Point(0.5, 0.5);
+                    blotchBrush.RadiusX = 1.0;
+                    blotchBrush.RadiusY = 1.0;
+                    blotchBrush.GradientStops.Add(new GradientStop(blotchColor, 0.0));
+                    blotchBrush.GradientStops.Add(new GradientStop(Color.FromArgb(0, blotchColor.R, blotchColor.G, blotchColor.B), 1.0));
+                    
+                    drawingContext.DrawEllipse(blotchBrush, null, new Point(x, y), size, size);
+                }
+                
+                // Add subtle texture
+                drawingContext.PushOpacity(0.1);
+                for (int i = 0; i < 200; i++)
+                {
+                    double x = random.NextDouble() * TETRAHEDRON_TEXTURE_SIZE;
+                    double y = random.NextDouble() * TETRAHEDRON_TEXTURE_SIZE;
+                    double size = random.NextDouble() * 2 + 0.5;
+                    
+                    // Use the contrast-based color selection here too
+                    Color dotColor = ColorUtilities.GetRelativeLuminance(baseColor) < 0.5 ? 
+                        Color.FromRgb(255, 215, 0) : // Gold for dark backgrounds
+                        Color.FromRgb(64, 64, 64);   // Dark gray for light backgrounds
+                    
+                    drawingContext.DrawEllipse(
+                        new SolidColorBrush(dotColor), 
+                        null, 
+                        new Point(x, y), 
+                        size, 
+                        size);
+                }
+                drawingContext.Pop();
+                
+                // Choose the best text color for maximum contrast
+                Color textColor = ColorUtilities.GetOptimalTextColor(baseColor);
+                SolidColorBrush textBrush = new SolidColorBrush(textColor);
+                
+                // Get the vertex numbers for this face
+                int[] vertexNumbers = GetTetrahedronVertexNumbers(faceNumber);
+                
+                // For a d4, we need to map the 3D vertices to 2D texture positions based on the face
+                // Each face has its own mapping of its vertices to the 2D texture
+                
+                // For a triangle on a 2D texture, we always have three positions:
+                // - Top vertex
+                // - Bottom-left vertex
+                // - Bottom-right vertex
+                
+                // The key insight is that we need a different mapping for each face
+                // to ensure that vertex numbers are in the correct position according to
+                // where they are in the 3D geometry
+                
+                // Define the basic positions on the texture where numbers will be drawn,
+                // these positions are relative to the shape of the triangle, not the vertices
+                Point[] texturePositions = new Point[]
+                {
+                    new Point(TETRAHEDRON_TEXTURE_SIZE / 2, TETRAHEDRON_TEXTURE_SIZE * 0.22), // Top position
+                    new Point(TETRAHEDRON_TEXTURE_SIZE * 0.22, TETRAHEDRON_TEXTURE_SIZE * 0.78), // Bottom-left position
+                    new Point(TETRAHEDRON_TEXTURE_SIZE * 0.78, TETRAHEDRON_TEXTURE_SIZE * 0.78)  // Bottom-right position
+                };
+                
+                // Define the mapping from vertices to positions for each face
+                // This is the critical part - mapping the vertex numbers to the correct positions on each face
+                int[] positionMap;
+                
+                switch (faceNumber)
+                {
+                    case 1: // Face 1 has vertices 1, 2, 3
+                        // Position mapping: v1->top, v2->bottom-right, v3->bottom-left
+                        positionMap = new int[] { 0, 2, 1 };
+                        break;
+                    case 2: // Face 2 has vertices 2, 3, 4
+                        // Position mapping: v2->top, v3->bottom-right, v4->bottom-left
+                        positionMap = new int[] { 0, 2, 1 };
+                        break;
+                    case 3: // Face 3 has vertices 1, 2, 4
+                        // Position mapping: v1->top, v2->bottom-right, v4->bottom-left
+                        positionMap = new int[] { 0, 1, 2 };
+                        break;
+                    case 4: // Face 4 has vertices 1, 3, 4
+                        // Position mapping: v1->top, v3->bottom-right, v4->bottom-left
+                        positionMap = new int[] { 0, 1, 2 };
+                        break;
+                    default:
+                        positionMap = new int[] { 0, 1, 2 };
+                        break;
+                }
+                
+                // Define rotation angles to orient the numbers correctly with their vertex "up"
+                double[] rotations = new double[] { 0, 240, 120 }; // For top, bottom-left, bottom-right
+                
+                // Font size for vertex numbers
+                double fontSize = TETRAHEDRON_TEXTURE_SIZE * 0.15;
+                
+                // Draw each vertex number at its proper position on this face
+                for (int i = 0; i < 3; i++)
+                {
+                    // Get the vertex number for this position
+                    int vertexIndex = positionMap[i];
+                    int vertexNumber = vertexNumbers[vertexIndex];
+                    
+                    // Create text for this vertex number
+                    FormattedText formattedText = new FormattedText(
+                        vertexNumber.ToString(),
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        FlowDirection.LeftToRight,
+                        new Typeface(new FontFamily("Times New Roman"), FontStyles.Normal, FontWeights.Bold, FontStretches.Normal),
+                        fontSize,
+                        textBrush,
+                        VisualTreeHelper.GetDpi(drawingVisual).PixelsPerDip);
+                    
+                    // Calculate shadow color
+                    Color shadowColor = (textColor.R == 0 && textColor.G == 0 && textColor.B == 0) ?
+                        Color.FromArgb(80, 60, 60, 60) : // Dark shadow for black text
+                        Color.FromArgb(80, 200, 200, 200); // Light shadow for white/light text
+                    
+                    // Create shadow text
+                    FormattedText shadowText = new FormattedText(
+                        vertexNumber.ToString(),
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        FlowDirection.LeftToRight,
+                        new Typeface(new FontFamily("Times New Roman"), FontStyles.Normal, FontWeights.Bold, FontStretches.Normal),
+                        fontSize,
+                        new SolidColorBrush(shadowColor),
+                        VisualTreeHelper.GetDpi(drawingVisual).PixelsPerDip);
+                    
+                    // Center the text
+                    double offsetX = formattedText.Width / 2;
+                    double offsetY = formattedText.Height / 2;
+                    
+                    // Shadow offset
+                    double shadowOffset = TETRAHEDRON_TEXTURE_SIZE * 0.005;
+                    
+                    // Apply transforms for position and rotation
+                    drawingContext.PushTransform(new TranslateTransform(texturePositions[i].X, texturePositions[i].Y));
+                    drawingContext.PushTransform(new RotateTransform(rotations[i]));
+                    
+                    // Draw shadow first
+                    drawingContext.DrawText(shadowText, new Point(-offsetX + shadowOffset, -offsetY + shadowOffset));
+                    // Draw main text
+                    drawingContext.DrawText(formattedText, new Point(-offsetX, -offsetY));
+                    
+                    drawingContext.Pop(); // Pop rotation
+                    drawingContext.Pop(); // Pop translation
+                }
+            }
+            
+            renderBitmap.Render(drawingVisual);
+            return ConvertToBitmapImage(renderBitmap);
+        }
+        
+        /// <summary>
+        /// Gets the three vertex numbers that should appear on a specific face of the tetrahedron
+        /// </summary>
+        private int[] GetTetrahedronVertexNumbers(int faceNumber)
+        {
+            // This maps each face to the three vertices it contains
+            // For a tetrahedron with vertices labeled 1-4, each face contains three of these vertices
+            switch (faceNumber)
+            {
+                case 1: return new int[] { 1, 2, 3 }; // Face 1 contains vertices 1, 2, and 3
+                case 2: return new int[] { 1, 2, 4 }; // Face 2 contains vertices 1, 2, and 4
+                case 3: return new int[] { 1, 3, 4 }; // Face 3 contains vertices 1, 3, and 4
+                case 4: return new int[] { 2, 3, 4 }; // Face 4 contains vertices 2, 3, and 4
+                default: return new int[] { 1, 2, 3 }; // Default fallback
+            }
+        }
+        
+        /// <summary>
+        /// Converts a RenderTargetBitmap to a BitmapImage for use in textures
+        /// </summary>
+        private BitmapImage ConvertToBitmapImage(RenderTargetBitmap renderBitmap)
+        {
+            BitmapImage bitmapImage = new BitmapImage();
+            
+            using (var stream = new System.IO.MemoryStream())
+            {
+                // Create a PNG encoder
+                BitmapEncoder encoder = new PngBitmapEncoder();
+                encoder.Frames.Add(BitmapFrame.Create(renderBitmap));
+                encoder.Save(stream);
+                
+                // Convert stream to BitmapImage
+                stream.Position = 0;
+                bitmapImage.BeginInit();
+                bitmapImage.CacheOption = BitmapCacheOption.OnLoad;
+                bitmapImage.StreamSource = stream;
+                bitmapImage.EndInit();
+                bitmapImage.Freeze(); // Make it thread-safe
+            }
+            
+            return bitmapImage;
+        }
+        
+        /// <summary>
+        /// Determines if a color is dark (for choosing contrasting text color)
+        /// </summary>
+        private bool IsColorDark(Color color)
+        {
+            // Calculate perceived brightness using standard formula
+            double brightness = (0.299 * color.R + 0.587 * color.G + 0.114 * color.B) / 255;
+            return brightness < 0.5;
+        }
+    }
+}

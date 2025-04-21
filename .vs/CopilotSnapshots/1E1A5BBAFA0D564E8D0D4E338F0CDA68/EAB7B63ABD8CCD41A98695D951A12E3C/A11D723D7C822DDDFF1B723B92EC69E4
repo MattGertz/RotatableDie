@@ -1,0 +1,178 @@
+﻿using System;
+using System.Windows;
+using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Media.Media3D;
+using System.Windows.Controls;
+using RotatableDie.Models;
+using RotatableDie.Services;
+
+namespace RotatableDie.UI
+{
+    /// <summary>
+    /// Handles visualization and interaction with the 3D die
+    /// </summary>
+    public class DieVisualizer
+    {
+        private readonly Viewport3D _viewport;
+        private readonly DieFactory _dieFactory;
+        
+        private Point _lastMousePosition;
+        private bool _isDragging = false;
+        private AxisAngleRotation3D _rotationX;
+        private AxisAngleRotation3D _rotationY;
+        private AxisAngleRotation3D _rotationZ;
+        private ModelVisual3D _dieVisual;
+        
+        // Threshold to determine if movement is primarily vertical or horizontal
+        private const double MOVEMENT_THRESHOLD = 1.5; // Vertical must be this many times greater than horizontal
+        private const double MINIMUM_MOVEMENT = 0.5;   // Minimum movement to register rotation
+        
+        public DieVisualizer(Viewport3D viewport, DieFactory dieFactory)
+        {
+            _viewport = viewport;
+            _dieFactory = dieFactory;
+            
+            // Create rotation transforms
+            _rotationX = new AxisAngleRotation3D(new Vector3D(1, 0, 0), 0);
+            _rotationY = new AxisAngleRotation3D(new Vector3D(0, 1, 0), 0);
+            _rotationZ = new AxisAngleRotation3D(new Vector3D(0, 0, 1), 0);
+            
+            // Create the die visual container
+            _dieVisual = new ModelVisual3D();
+            _viewport.Children.Add(_dieVisual);
+            
+            // Set up mouse event handlers
+            _viewport.MouseDown += Viewport_MouseDown;
+            _viewport.MouseMove += Viewport_MouseMove;
+            _viewport.MouseUp += Viewport_MouseUp;
+        }
+        
+        /// <summary>
+        /// Creates and renders a die with the specified type and color
+        /// </summary>
+        public void CreateDie(DieType dieType, Color color)
+        {
+            // Clear the current die visual content
+            _dieVisual.Content = null;
+            
+            // Force UI update
+            _viewport.InvalidateVisual();
+            
+            // Create a new model group for the die
+            Model3DGroup dieModelGroup = new Model3DGroup();
+            
+            // Create solid based on selected type
+            Die die = _dieFactory.CreateDie(dieType);
+            die.CreateGeometry(dieModelGroup, color);
+            
+            // Create a transform group for the rotations
+            Transform3DGroup transformGroup = new Transform3DGroup();
+            transformGroup.Children.Add(new RotateTransform3D(_rotationX));
+            transformGroup.Children.Add(new RotateTransform3D(_rotationY));
+            transformGroup.Children.Add(new RotateTransform3D(_rotationZ));
+            
+            // Apply the transforms to the model
+            dieModelGroup.Transform = transformGroup;
+            
+            // Set the content of the die visual
+            _dieVisual.Content = dieModelGroup;
+        }
+        
+        private void Viewport_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.LeftButton == MouseButtonState.Pressed || e.RightButton == MouseButtonState.Pressed)
+            {
+                _isDragging = true;
+                _lastMousePosition = e.GetPosition(_viewport);
+                // Capture mouse to continue getting events even when outside the viewport
+                Mouse.Capture(_viewport);
+            }
+        }
+        
+        private void Viewport_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (_isDragging)
+            {
+                Point currentMousePosition = e.GetPosition(_viewport);
+                
+                // Calculate the difference in position
+                double deltaX = currentMousePosition.X - _lastMousePosition.X;
+                double deltaY = currentMousePosition.Y - _lastMousePosition.Y;
+                
+                // Left mouse button: X and Y axis rotation
+                if (e.LeftButton == MouseButtonState.Pressed)
+                {
+                    // Calculate the absolute values for comparison
+                    double absDeltaX = Math.Abs(deltaX);
+                    double absDeltaY = Math.Abs(deltaY);
+                    
+                    // Determine if the movement is primarily vertical
+                    bool isPrimarilyVertical = absDeltaY > MOVEMENT_THRESHOLD * absDeltaX;
+                    
+                    // Determine if the movement is primarily horizontal
+                    bool isPrimarilyHorizontal = absDeltaX > MOVEMENT_THRESHOLD * absDeltaY;
+                    
+                    // Apply horizontal rotation only if movement isn't primarily vertical
+                    if (!isPrimarilyVertical && absDeltaX > MINIMUM_MOVEMENT)
+                    {
+                        _rotationY.Angle += deltaX * 0.5;  // Horizontal movement rotates around Y axis
+                    }
+                    
+                    // Apply vertical rotation only if movement isn't primarily horizontal
+                    if (!isPrimarilyHorizontal && absDeltaY > MINIMUM_MOVEMENT)
+                    {
+                        _rotationX.Angle += deltaY * 0.5;  // Vertical movement rotates around X axis
+                    }
+                    
+                    // If movement is neither primarily vertical nor primarily horizontal, 
+                    // apply both rotations as before (diagonal movement)
+                    if (!isPrimarilyVertical && !isPrimarilyHorizontal)
+                    {
+                        // We've already applied the rotations above when checking the minimum movement
+                    }
+                }
+                
+                // Right mouse button: Z axis rotation in a more natural way
+                if (e.RightButton == MouseButtonState.Pressed)
+                {
+                    // Calculate rotation based on movement relative to center of viewport
+                    Point viewportCenter = new Point(_viewport.ActualWidth / 2, _viewport.ActualHeight / 2);
+                    Point previousVector = new Point(_lastMousePosition.X - viewportCenter.X, _lastMousePosition.Y - viewportCenter.Y);
+                    Point currentVector = new Point(currentMousePosition.X - viewportCenter.X, currentMousePosition.Y - viewportCenter.Y);
+                    
+                    // Skip tiny movements to avoid erratic rotation
+                    double prevMagnitude = Math.Sqrt(previousVector.X * previousVector.X + previousVector.Y * previousVector.Y);
+                    double currMagnitude = Math.Sqrt(currentVector.X * currentVector.X + currentVector.Y * currentVector.Y);
+                    
+                    if (prevMagnitude > 5 && currMagnitude > 5) // Minimum threshold to detect intentional movement
+                    {
+                        // Calculate the angle between previous and current vectors (cross product)
+                        double crossProduct = previousVector.X * currentVector.Y - previousVector.Y * currentVector.X;
+                        
+                        // The sign of the cross product tells us the rotation direction
+                        // Positive means counter-clockwise, negative means clockwise
+                        double rotationFactor = 0.5; // Adjust sensitivity
+                        
+                        // Apply rotation - REVERSED direction by removing the negative sign
+                        // Now positive cross product creates clockwise rotation
+                        _rotationZ.Angle -= (crossProduct / (prevMagnitude * currMagnitude)) * rotationFactor * 50;
+                    }
+                }
+                
+                // Save the current position for the next move event
+                _lastMousePosition = currentMousePosition;
+            }
+        }
+        
+        private void Viewport_MouseUp(object sender, MouseButtonEventArgs e)
+        {
+            if (e.LeftButton == MouseButtonState.Released && e.RightButton == MouseButtonState.Released)
+            {
+                _isDragging = false;
+                // Release mouse capture
+                Mouse.Capture(null);
+            }
+        }
+    }
+}

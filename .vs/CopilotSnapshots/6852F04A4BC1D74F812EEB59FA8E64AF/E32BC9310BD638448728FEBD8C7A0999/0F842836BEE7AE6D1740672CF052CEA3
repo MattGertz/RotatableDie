@@ -1,0 +1,86 @@
+﻿using System;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using System.Windows.Media.Media3D;
+using RotatableDie.Services;
+
+namespace RotatableDie.Models.DieTypes
+{
+    public class IcosahedronDie : Die
+    {
+        public IcosahedronDie(DieTextureService textureService) 
+            : base(DieType.Icosahedron, textureService)
+        {
+        }
+        
+        public override void CreateGeometry(Model3DGroup modelGroup, Color color)
+        {
+            // Icosahedron has 20 equilateral triangular faces
+            double phi = (1 + Math.Sqrt(5)) / 2; // Golden ratio
+            double scale = 0.5; // Scale to a reasonable size
+            
+            // Define the icosahedron vertices
+            Point3D[] vertices = new Point3D[12];
+            
+            vertices[0] = new Point3D(0, scale, phi * scale);
+            vertices[1] = new Point3D(0, -scale, phi * scale);
+            vertices[2] = new Point3D(0, scale, -phi * scale);
+            vertices[3] = new Point3D(0, -scale, -phi * scale);
+            
+            vertices[4] = new Point3D(scale, phi * scale, 0);
+            vertices[5] = new Point3D(-scale, phi * scale, 0);
+            vertices[6] = new Point3D(scale, -phi * scale, 0);
+            vertices[7] = new Point3D(-scale, -phi * scale, 0);
+            
+            vertices[8] = new Point3D(phi * scale, 0, scale);
+            vertices[9] = new Point3D(phi * scale, 0, -scale);
+            vertices[10] = new Point3D(-phi * scale, 0, scale);
+            vertices[11] = new Point3D(-phi * scale, 0, -scale);
+            
+            // Face indices for the 20 triangular faces
+            int[][] faceIndices = new int[][]
+            {
+                new int[] { 0, 1, 8 },
+                new int[] { 0, 8, 4 },
+                new int[] { 0, 4, 5 },
+                new int[] { 0, 5, 10 },
+                new int[] { 0, 10, 1 },
+                
+                new int[] { 1, 6, 8 },
+                new int[] { 8, 6, 9 },
+                new int[] { 8, 9, 4 },
+                new int[] { 4, 9, 2 },
+                new int[] { 4, 2, 5 },
+                
+                new int[] { 5, 2, 11 },
+                new int[] { 5, 11, 10 },
+                new int[] { 10, 11, 7 },
+                new int[] { 10, 7, 1 },
+                new int[] { 1, 7, 6 },
+                
+                new int[] { 6, 7, 3 },
+                new int[] { 6, 3, 9 },
+                new int[] { 9, 3, 2 },
+                new int[] { 2, 3, 11 },
+                new int[] { 11, 3, 7 }
+            };
+            
+            // Create textures for each face
+            BitmapImage[] textures = new BitmapImage[20];
+            
+            // In a standard d20, opposite pairs sum to 21
+            for (int i = 0; i < 20; i++)
+            {
+                textures[i] = TextureService.CreateDieTexture(i + 1, color, Type);
+            }
+            
+            // Create the 20 triangular faces
+            for (int i = 0; i < 20; i++)
+            {
+                // Need to reverse the face indices order to fix texture orientation for the d20
+                int[] reversedIndices = new int[] { faceIndices[i][0], faceIndices[i][2], faceIndices[i][1] };
+                GeometryHelper.CreateTriangleFace(modelGroup, vertices, reversedIndices, textures[i]);
+            }
+        }
+    }
+}
