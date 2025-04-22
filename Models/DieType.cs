@@ -10,6 +10,7 @@ namespace RotatableDie.Models
         Tetrahedron,
         Cube,
         Octahedron,
+        Decahedron,
         Dodecahedron,
         Icosahedron
     }

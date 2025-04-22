@@ -84,8 +84,8 @@ namespace RotatableDie.Services
                 // Draw the main text
                 drawingContext.DrawText(formattedText, new Point(textX, textY));
                 
-                // For d12 and d20, add underlines to 6 and 9 for orientation
-                if ((dieType == DieType.Dodecahedron || dieType == DieType.Icosahedron) && 
+                // For d12, d20, and d10, add underlines to 6 and 9 for orientation
+                if ((dieType == DieType.Dodecahedron || dieType == DieType.Icosahedron || dieType == DieType.Decahedron) && 
                     (number == 6 || number == 9))
                 {
                     DrawNumberUnderline(drawingContext, textBrush, textX, textY, formattedText, outputSize);
@@ -126,6 +126,9 @@ namespace RotatableDie.Services
                     break;
                 case DieType.Octahedron:
                     fontSizeFactor *= 0.9; // Slightly smaller for d8
+                    break;
+                case DieType.Decahedron:
+                    fontSizeFactor *= 0.75; // Smaller for d10 kite faces
                     break;
             }
             
@@ -256,6 +259,12 @@ namespace RotatableDie.Services
                 
                 // Position the text so its center is at the centroid
                 return triangleCentroidY - (textHeight / 2);
+            }
+            else if (dieType == DieType.Decahedron)
+            {
+                // For d10, position the text much closer to the equator (where the pyramids join)
+                // Move the number down significantly - position it at 70% of the way down
+                return outputSize * 0.7 - (textHeight / 2);
             }
             else
             {
