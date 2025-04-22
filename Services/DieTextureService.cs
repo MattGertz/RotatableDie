@@ -262,9 +262,9 @@ namespace RotatableDie.Services
             }
             else if (dieType == DieType.Decahedron)
             {
-                // For d10, position the text much closer to the equator (where the pyramids join)
-                // Move the number down significantly - position it at 70% of the way down
-                return outputSize * 0.7 - (textHeight / 2);
+                // For d10, position the text away from the equator by half a font size
+                // Move it from 70% to 60% of the way down (moving toward the pole)
+                return outputSize * 0.6 - (textHeight / 2);
             }
             else
             {
