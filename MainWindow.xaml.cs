@@ -31,7 +31,7 @@ namespace RotatableDie
             _dieFactory = new DieFactory(_textureService);
 
             // Initialize UI components
-            _controlsManager = new UIControlsManager(this);
+            _controlsManager = new UIControlsManager(this, instructionsTextBlock);
             _visualizer = new DieVisualizer(viewport, _dieFactory);
 
             // Set up event handlers

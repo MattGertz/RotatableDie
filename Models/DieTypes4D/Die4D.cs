@@ -14,9 +14,9 @@ namespace RotatableDie.Models.DieTypes4D
         /// <summary>
         /// Current rotation angles for the 4D transformations (in radians)
         /// </summary>
-        protected double RotationXW = 0; // Rotation in the X-W plane
-        protected double RotationYW = 0; // Rotation in the Y-W plane
-        protected double RotationZW = 0; // Rotation in the Z-W plane
+        public double RotationXW { get; set; } = 0; // Rotation in the X-W plane
+        public double RotationYW { get; set; } = 0; // Rotation in the Y-W plane
+        public double RotationZW { get; set; } = 0; // Rotation in the Z-W plane
         
         /// <summary>
         /// Store the original 4D vertices before any rotations

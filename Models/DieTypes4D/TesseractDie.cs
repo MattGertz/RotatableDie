@@ -142,8 +142,8 @@ namespace RotatableDie.Models.DieTypes4D
             // Calculate cell visibility based on the current 4D rotation
             CalculateCellVisibility();
             
-            // Create the appropriate materials
-            Material faceMaterial = new DiffuseMaterial(new SolidColorBrush(color));
+            // Store the original color to ensure it doesn't change during rotation
+            Color originalColor = color;
             
             // Sort cells by visibility for proper rendering order (most visible first)
             cells.Sort((a, b) => b.Visibility.CompareTo(a.Visibility));
@@ -154,7 +154,8 @@ namespace RotatableDie.Models.DieTypes4D
                 // Only render cells with some visibility
                 if (cell.Visibility > 0.05)
                 {
-                    RenderCubicCell(modelGroup, cell, color);
+                    // Always use the original color for each cell
+                    RenderCubicCell(modelGroup, cell, originalColor);
                 }
             }
         }
@@ -207,10 +208,6 @@ namespace RotatableDie.Models.DieTypes4D
             // Create the material with appropriate opacity
             Material material = new DiffuseMaterial(new SolidColorBrush(cellColor));
             
-            // Create textures for the cell faces (numbered 0-7)
-            BitmapImage texture = TextureService.CreateDieTexture(cell.Number, baseColor, DieType.Tesseract);
-            Material textureMaterial = new DiffuseMaterial(new ImageBrush(texture));
-            
             // Define the faces of a cube (groups of 4 vertices)
             int[][] cubeFaces = new int[][]
             {
@@ -249,9 +246,52 @@ namespace RotatableDie.Models.DieTypes4D
                 faceMesh.TextureCoordinates.Add(new Point(1, 1));
                 faceMesh.TextureCoordinates.Add(new Point(0, 1));
                 
-                // Apply textures to all faces for better visualization during 4D rotation
-                // Use a different rotation for each face so numbers don't all look the same
-                Material faceMat = textureMaterial;
+                // Check if this face is shared with another cell
+                bool isShared = false;
+                int sharingCellIndex = -1;
+                
+                // Determine if this is a shared face by checking other cells
+                foreach (var otherCell in cells)
+                {
+                    // Skip the current cell
+                    if (otherCell.Number == cell.Number)
+                        continue;
+                    
+                    // Check if the face vertices are all shared with the other cell
+                    bool allVerticesShared = true;
+                    foreach (int vertexOffset in cubeFaces[faceIndex])
+                    {
+                        int vertexIndex = cell.VertexIndices[vertexOffset];
+                        if (!Array.Exists(otherCell.VertexIndices, v => v == vertexIndex))
+                        {
+                            allVerticesShared = false;
+                            break;
+                        }
+                    }
+                    
+                    if (allVerticesShared)
+                    {
+                        isShared = true;
+                        sharingCellIndex = otherCell.Number;
+                        break;
+                    }
+                }
+                
+                // Create texture for this face using the specialized method
+                // Use original baseColor for texture (not the transparency-modified cellColor)
+                BitmapImage texture = TextureService.CreateTesseractCellTexture(
+                    cell.Number,         // Cell index for numbering system
+                    faceIndex,           // Face number
+                    baseColor,           // Original base color selected by user (not cellColor)
+                    isShared,            // Whether this face is shared
+                    sharingCellIndex);   // Index of the sharing cell, if any
+                
+                // Create material with the texture - apply transparency here
+                ImageBrush textureBrush = new ImageBrush(texture);
+                
+                // Apply opacity through the brush instead of the material
+                textureBrush.Opacity = cell.Opacity;
+                Material faceMat = new DiffuseMaterial(textureBrush);
                 
                 // Create and add the 3D model for this face
                 GeometryModel3D faceModel = new GeometryModel3D(faceMesh, faceMat);

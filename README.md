@@ -1,12 +1,12 @@
-# 3D Die Viewer
+# 3D & 4D Die Viewer
 
-A .NET 9 WPF application for visualizing and interacting with 3D polyhedral dice.
+A .NET 9 WPF application for visualizing and interacting with 3D and 4D polyhedral dice.
 
 ![3D Die Viewer Screenshot](Resources/screenshot.png)
 
 ## Overview
 
-3D Die Viewer is an interactive application that allows users to view and rotate different types of polyhedral dice in three-dimensional space. The application provides realistic renderings of standard polyhedral dice (d4, d6, d8, d10, d12, d20) with customizable colors and intuitive rotation controls.
+3D & 4D Die Viewer is an interactive application that allows users to view and rotate different types of polyhedral dice in three-dimensional and four-dimensional space. The application provides realistic renderings of standard polyhedral dice (d4, d6, d8, d10, d12, d20) with customizable colors and intuitive rotation controls, plus a mind-bending tesseract (4D hypercube) visualization.
 
 ## Features
 
@@ -17,11 +17,18 @@ A .NET 9 WPF application for visualizing and interacting with 3D polyhedral dice
   - Decahedron/Pentagonal Trapezohedron (d10)
   - Dodecahedron (d12)
   - Icosahedron (d20)
+  - Tesseract/Hypercube (4D die)
 
 - **Interactive 3D Rotation**: Naturally manipulate dice in 3D space:
   - Left-click + drag to rotate around X and Y axes
   - Right-click + drag to spin around the Z-axis (view direction)
   - Smart movement detection to determine rotation intent
+
+- **Interactive 4D Rotation** (Tesseract only):
+  - Middle-click + drag to rotate around XW and YW planes
+  - Shift + middle-click to rotate around ZW plane
+  - Mouse wheel for additional ZW rotation
+  - Ctrl + wheel for XW rotation, Shift + wheel for YW rotation
 
 - **Customizable Appearance**: Choose from a wide variety of colors for your dice
 
@@ -40,6 +47,7 @@ The application is built using:
 - 3D geometry rendering with WPF's Viewport3D
 - Quaternion-based rotations for smooth interaction
 - Vector math for proper 3D construction
+- 4D hypercube projection into 3D space
 
 ### Architecture
 
@@ -69,6 +77,33 @@ The project successfully tackled several complex mathematical problems:
 - Smart movement detection algorithms
 - Proper UV mapping for texture coordinates on irregular polygons
 
+### Visualizing the Fourth Dimension
+
+The implementation of the tesseract (4D hypercube) represents a significant achievement in visualization:
+
+#### What is a Tesseract?
+A tesseract is the 4-dimensional analog of a cube, just as a cube is the 3-dimensional analog of a square. It consists of 8 cubic cells, 24 square faces, 32 edges, and 16 vertices.
+
+#### How the Visualization Works
+- The application projects the 4D tesseract into 3D space, which we then view on a 2D screen
+- Rotation in 4D space involves rotating around planes (XW, YW, ZW) rather than axes
+- As the tesseract rotates in 4D, different cubic cells come into and out of our 3D "view"
+- Cells are rendered with transparency based on their position in the W dimension
+- Shared faces between cells display both cell's numbering systems
+
+#### Unique Numbering Systems
+Each of the 8 cubic cells uses a different numbering system:
+- Cell 0: Arabic numerals (1-6)
+- Cell 1: Latin alphabet (A-F)
+- Cell 2: Roman numerals (I-VI)
+- Cell 3: Greek letters (α-ζ)
+- Cell 4: Binary numbers (bold)
+- Cell 5: Hexadecimal numbers (italic)
+- Cell 6: Dot patterns (like on regular dice)
+- Cell 7: Circled numbers (①-⑥)
+
+This multi-system approach makes it easier to track and understand the complex 4D relationships as the tesseract rotates.
+
 ### Challenges with the d10 Implementation
 
 The implementation of the d10 (decahedron/pentagonal trapezohedron) highlighted interesting limitations and learning opportunities:
@@ -90,8 +125,8 @@ This demonstrated that while AI assistants like Copilot have impressive capabili
 1. Select a die type from the dropdown menu
 2. Choose a color for your die from the color selector
 3. Interact with the die using mouse controls:
-   - Left-click + drag to rotate
-   - Right-click + drag for z-axis rotation
+   - For 3D dice: Left-click + drag to rotate, right-click + drag for z-axis rotation
+   - For the tesseract: Also use middle-click + drag to rotate in 4D space
 
 ## Requirements
 
@@ -101,7 +136,7 @@ This demonstrated that while AI assistants like Copilot have impressive capabili
 
 ## Future Possibilities
 
-- Additional dice types (non-standard polyhedra)
+- Additional higher-dimensional polytopes (5D and beyond)
 - Dice rolling physics simulation
 - Multiple dice visualization
 - Export/import customized dice

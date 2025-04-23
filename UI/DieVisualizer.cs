@@ -4,6 +4,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Media3D;
 using System.Windows.Controls;
+using System.Windows.Media.Imaging;
 using System.Collections.Generic;
 using RotatableDie.Models;
 using RotatableDie.Services;
@@ -51,6 +52,11 @@ namespace RotatableDie.UI
         }
 
         private Die _currentDie; // Store reference to the current die instance
+        
+        /// <summary>
+        /// Gets the type of the currently displayed die
+        /// </summary>
+        public DieType CurrentDieType => _currentDie.Type;
 
         public DieVisualizer(Viewport3D viewport, DieFactory dieFactory)
         {
@@ -118,6 +124,22 @@ namespace RotatableDie.UI
         /// </summary>
         public void CreateDie(DieType dieType, Color color)
         {
+            // Store the previous die's 4D rotation if it's a Tesseract
+            double previousXW = 0;
+            double previousYW = 0;
+            double previousZW = 0;
+            bool preserveRotation = false;
+            
+            if (_currentDie is Die4D previousDie4D && dieType == DieType.Tesseract)
+            {
+                // We're changing from a 4D die to another 4D die (or same one with different color)
+                // Preserve the 4D rotation angles
+                previousXW = ((Die4D)_currentDie).RotationXW;
+                previousYW = ((Die4D)_currentDie).RotationYW;
+                previousZW = ((Die4D)_currentDie).RotationZW;
+                preserveRotation = true;
+            }
+            
             // Clear the current die visual content
             _dieVisual.Content = null;
             
@@ -129,6 +151,16 @@ namespace RotatableDie.UI
             
             // Create solid based on selected type
             _currentDie = _dieFactory.CreateDie(dieType);
+            
+            // Restore 4D rotation if needed
+            if (preserveRotation && _currentDie is Die4D newDie4D)
+            {
+                newDie4D.RotationXW = previousXW;
+                newDie4D.RotationYW = previousYW;
+                newDie4D.RotationZW = previousZW;
+            }
+            
+            // Create the geometry with the preserved rotation
             _currentDie.CreateGeometry(dieModelGroup, color);
             
             // Apply the unified transform to the model
@@ -355,23 +387,8 @@ namespace RotatableDie.UI
                     // Update the geometry with the new 4D rotation
                     Model3DGroup dieModelGroup = new Model3DGroup();
                     
-                    // Use the current color by sampling the existing material if possible
-                    Color dieColor = Colors.White;
-                    if (_dieVisual.Content is Model3DGroup currentGroup)
-                    {
-                        foreach (var model in currentGroup.Children)
-                        {
-                            if (model is GeometryModel3D geometryModel && 
-                                geometryModel.Material is DiffuseMaterial diffuse)
-                            {
-                                if (diffuse.Brush is SolidColorBrush brush)
-                                {
-                                    dieColor = brush.Color;
-                                    break;
-                                }
-                            }
-                        }
-                    }
+                    // Extract the current color using our helper method
+                    Color dieColor = GetCurrentDieColor();
                     
                     // Recreate geometry with updated 4D rotation
                     die4D.CreateGeometry(dieModelGroup, dieColor);
@@ -478,23 +495,8 @@ namespace RotatableDie.UI
                 // Update the geometry with the new rotation
                 Model3DGroup dieModelGroup = new Model3DGroup();
                 
-                // Use the current color
-                Color dieColor = Colors.White;
-                if (_dieVisual.Content is Model3DGroup currentGroup)
-                {
-                    foreach (var model in currentGroup.Children)
-                    {
-                        if (model is GeometryModel3D geometryModel && 
-                            geometryModel.Material is DiffuseMaterial diffuse)
-                        {
-                            if (diffuse.Brush is SolidColorBrush brush)
-                            {
-                                dieColor = brush.Color;
-                                break;
-                            }
-                        }
-                    }
-                }
+                // Extract the current color from the existing model
+                Color dieColor = GetCurrentDieColor();
                 
                 // Recreate geometry with updated 4D rotation
                 die4D.CreateGeometry(dieModelGroup, dieColor);
@@ -507,6 +509,32 @@ namespace RotatableDie.UI
                 
                 e.Handled = true;
             }
+        }
+        
+        // Helper method to extract the current die color
+        private Color GetCurrentDieColor()
+        {
+            // Default color if we can't determine the current color
+            Color defaultColor = Colors.White;
+            
+            // Try to extract the color from the existing model
+            if (_dieVisual.Content is Model3DGroup currentGroup && 
+                currentGroup.Children.Count > 0)
+            {
+                foreach (var model in currentGroup.Children)
+                {
+                    if (model is GeometryModel3D geometryModel && 
+                        geometryModel.Material is DiffuseMaterial diffuseMaterial &&
+                        diffuseMaterial.Brush is SolidColorBrush brush)
+                    {
+                        // Found a solid color - use this as our die color
+                        // Make sure we're getting the full opacity version
+                        return Color.FromRgb(brush.Color.R, brush.Color.G, brush.Color.B);
+                    }
+                }
+            }
+            
+            return defaultColor;
         }
     }
 }

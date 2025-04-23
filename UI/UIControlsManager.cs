@@ -17,13 +17,15 @@ namespace RotatableDie.UI
     {
         private readonly Window _window;
         private ComboBox? _colorComboBox;
+        private readonly TextBlock _instructionsBlock;
         
         public event EventHandler<DieTypeChangedEventArgs>? DieTypeChanged;
         public event EventHandler<ColorChangedEventArgs>? ColorChanged;
         
-        public UIControlsManager(Window window)
+        public UIControlsManager(Window window, TextBlock instructionsBlock)
         {
             _window = window;
+            _instructionsBlock = instructionsBlock;
         }
         
         public void SetupControls()
@@ -212,6 +214,22 @@ namespace RotatableDie.UI
             if (sender is ComboBox comboBox && comboBox.SelectedItem is DieTypeItem item)
             {
                 DieTypeChanged?.Invoke(this, new DieTypeChangedEventArgs(item.Type));
+                UpdateRotationInstructions(item.Type);
+            }
+        }
+
+        /// <summary>
+        /// Updates the rotation instructions based on the current die type
+        /// </summary>
+        private void UpdateRotationInstructions(DieType dieType)
+        {
+            if (dieType == DieType.Tesseract)
+            {
+                _instructionsBlock.Text = "Left-click + drag to rotate in 3D • Right-click + drag for z-axis spin • Middle-click + drag to rotate in 4D";
+            }
+            else
+            {
+                _instructionsBlock.Text = "Left-click + drag to rotate die • Right-click + drag for z-axis spin";
             }
         }
     }
