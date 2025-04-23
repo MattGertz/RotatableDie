@@ -7,6 +7,7 @@ using System.Windows.Controls;
 using System.Collections.Generic;
 using RotatableDie.Models;
 using RotatableDie.Services;
+using RotatableDie.Models.DieTypes4D;
 
 namespace RotatableDie.UI
 {
@@ -49,10 +50,15 @@ namespace RotatableDie.UI
             Diagonal
         }
 
+        private Die _currentDie; // Store reference to the current die instance
+
         public DieVisualizer(Viewport3D viewport, DieFactory dieFactory)
         {
             _viewport = viewport;
             _dieFactory = dieFactory;
+            
+            // Initialize _currentDie to avoid non-nullable warning
+            _currentDie = _dieFactory.CreateDie(DieType.Cube);
 
             // Initialize transform - we'll use a single rotation transform with a matrix
             _dieTransform = new Transform3DGroup();
@@ -72,6 +78,7 @@ namespace RotatableDie.UI
             _viewport.MouseDown += Viewport_MouseDown;
             _viewport.MouseMove += Viewport_MouseMove;
             _viewport.MouseUp += Viewport_MouseUp;
+            _viewport.MouseWheel += Viewport_MouseWheel; // Add wheel event for 4D rotation
         }
 
 
@@ -121,8 +128,8 @@ namespace RotatableDie.UI
             Model3DGroup dieModelGroup = new Model3DGroup();
             
             // Create solid based on selected type
-            Die die = _dieFactory.CreateDie(dieType);
-            die.CreateGeometry(dieModelGroup, color);
+            _currentDie = _dieFactory.CreateDie(dieType);
+            _currentDie.CreateGeometry(dieModelGroup, color);
             
             // Apply the unified transform to the model
             dieModelGroup.Transform = _dieTransform;
@@ -134,7 +141,8 @@ namespace RotatableDie.UI
         private void Viewport_MouseDown(object sender, MouseButtonEventArgs e)
         {
             // Capture mouse input regardless of where the click happens
-            if (e.LeftButton == MouseButtonState.Pressed || e.RightButton == MouseButtonState.Pressed)
+            if (e.LeftButton == MouseButtonState.Pressed || e.RightButton == MouseButtonState.Pressed || 
+                e.MiddleButton == MouseButtonState.Pressed) // Add middle button support
             {
                 _isDragging = true;
                 _lastMousePosition = e.GetPosition(_viewport);
@@ -312,6 +320,69 @@ namespace RotatableDie.UI
                     }
                 }
                 
+                // Middle mouse button: 4D rotations for 4D dice types
+                if (e.MiddleButton == MouseButtonState.Pressed && _currentDie is Die4D die4D)
+                {
+                    // Get absolute deltas for direction comparison
+                    double absDeltaX = Math.Abs(deltaX);
+                    double absDeltaY = Math.Abs(deltaY);
+                    
+                    // Skip processing for very tiny movements
+                    if (absDeltaX < 0.1 && absDeltaY < 0.1)
+                    {
+                        _lastMousePosition = currentMousePosition;
+                        return;
+                    }
+                    
+                    // Scale factors to make rotations more sensitive
+                    const double ROTATION_SCALE = 0.01;
+                    
+                    // Apply appropriate 4D rotations based on mouse movement
+                    if (Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift))
+                    {
+                        // Shift + Middle Button: Rotate in Z-W plane
+                        double deltaZW = deltaX * ROTATION_SCALE;
+                        die4D.Rotate4D(0, 0, deltaZW);
+                    }
+                    else
+                    {
+                        // Middle Button: Rotate in X-W and Y-W planes
+                        double deltaXW = -deltaY * ROTATION_SCALE; // Invert Y for more intuitive control
+                        double deltaYW = deltaX * ROTATION_SCALE;
+                        die4D.Rotate4D(deltaXW, deltaYW, 0);
+                    }
+                    
+                    // Update the geometry with the new 4D rotation
+                    Model3DGroup dieModelGroup = new Model3DGroup();
+                    
+                    // Use the current color by sampling the existing material if possible
+                    Color dieColor = Colors.White;
+                    if (_dieVisual.Content is Model3DGroup currentGroup)
+                    {
+                        foreach (var model in currentGroup.Children)
+                        {
+                            if (model is GeometryModel3D geometryModel && 
+                                geometryModel.Material is DiffuseMaterial diffuse)
+                            {
+                                if (diffuse.Brush is SolidColorBrush brush)
+                                {
+                                    dieColor = brush.Color;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Recreate geometry with updated 4D rotation
+                    die4D.CreateGeometry(dieModelGroup, dieColor);
+                    
+                    // Apply the existing 3D transform
+                    dieModelGroup.Transform = _dieTransform;
+                    
+                    // Update the visual
+                    _dieVisual.Content = dieModelGroup;
+                }
+                
                 // Save the current position for the next move event
                 _lastMousePosition = currentMousePosition;
             }
@@ -366,7 +437,9 @@ namespace RotatableDie.UI
         
         private void Viewport_MouseUp(object sender, MouseButtonEventArgs e)
         {
-            if (e.LeftButton == MouseButtonState.Released && e.RightButton == MouseButtonState.Released)
+            if (e.LeftButton == MouseButtonState.Released && 
+                e.RightButton == MouseButtonState.Released &&
+                e.MiddleButton == MouseButtonState.Released) // Add middle button check
             {
                 _isDragging = false;
                 _currentIntent = MovementIntent.None;
@@ -374,6 +447,65 @@ namespace RotatableDie.UI
                 
                 // Release mouse capture
                 Mouse.Capture(null);
+            }
+        }
+
+        private void Viewport_MouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            // Handle mouse wheel for additional 4D rotation control
+            if (_currentDie is Die4D die4D)
+            {
+                // Convert wheel delta to a small rotation angle (wheel delta comes in multiples of 120)
+                double rotationDelta = e.Delta / 1200.0;
+                
+                // Apply rotation based on modifier keys
+                if (Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl))
+                {
+                    // Ctrl + Wheel: Rotate in X-W plane
+                    die4D.Rotate4D(rotationDelta, 0, 0);
+                }
+                else if (Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift))
+                {
+                    // Shift + Wheel: Rotate in Y-W plane
+                    die4D.Rotate4D(0, rotationDelta, 0);
+                }
+                else
+                {
+                    // Just Wheel: Rotate in Z-W plane
+                    die4D.Rotate4D(0, 0, rotationDelta);
+                }
+                
+                // Update the geometry with the new rotation
+                Model3DGroup dieModelGroup = new Model3DGroup();
+                
+                // Use the current color
+                Color dieColor = Colors.White;
+                if (_dieVisual.Content is Model3DGroup currentGroup)
+                {
+                    foreach (var model in currentGroup.Children)
+                    {
+                        if (model is GeometryModel3D geometryModel && 
+                            geometryModel.Material is DiffuseMaterial diffuse)
+                        {
+                            if (diffuse.Brush is SolidColorBrush brush)
+                            {
+                                dieColor = brush.Color;
+                                break;
+                            }
+                        }
+                    }
+                }
+                
+                // Recreate geometry with updated 4D rotation
+                die4D.CreateGeometry(dieModelGroup, dieColor);
+                
+                // Apply the existing 3D transform
+                dieModelGroup.Transform = _dieTransform;
+                
+                // Update the visual
+                _dieVisual.Content = dieModelGroup;
+                
+                e.Handled = true;
             }
         }
     }

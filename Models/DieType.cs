@@ -12,6 +12,7 @@ namespace RotatableDie.Models
         Octahedron,
         Decahedron,
         Dodecahedron,
-        Icosahedron
+        Icosahedron,
+        Tesseract    // 4D hypercube (8-cell)
     }
 }

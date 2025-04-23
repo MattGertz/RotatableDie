@@ -130,6 +130,9 @@ namespace RotatableDie.Services
                 case DieType.Decahedron:
                     fontSizeFactor *= 0.75; // Smaller for d10 kite faces
                     break;
+                case DieType.Tesseract:
+                    fontSizeFactor *= 0.7; // Smaller for tesseract cells
+                    break;
             }
             
             return fontSizeFactor;
@@ -265,6 +268,11 @@ namespace RotatableDie.Services
                 // For d10, position the text away from the equator by half a font size
                 // Move it from 70% to 60% of the way down (moving toward the pole)
                 return outputSize * 0.6 - (textHeight / 2);
+            }
+            else if (dieType == DieType.Tesseract)
+            {
+                // For tesseract, center the text vertically
+                return (outputSize - textHeight) / 2;
             }
             else
             {
