@@ -415,6 +415,10 @@ namespace RotatableDie.Models.DieTypes4D
                         -1,                    // No sharing cell
                         192));                 // Texture size
                 
+                // Fix the mirrored text by applying a ScaleTransform to the brush
+                // This flips the texture horizontally to correct the mirroring issue
+                faceBrush.RelativeTransform = new ScaleTransform(-1, 1, 0.5, 0.5);
+                
                 // Create material with the texture
                 Material textureMaterial = new DiffuseMaterial(faceBrush);
                 

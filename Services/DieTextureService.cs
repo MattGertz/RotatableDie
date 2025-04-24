@@ -658,8 +658,10 @@ namespace RotatableDie.Services
                         string[] greekLetters = { "α", "β", "γ", "δ", "ε", "ζ" };
                         return greekLetters[faceIndex];
                         
-                    case 4: // Binary with "B" prefix (bold)
-                        return "B" + Convert.ToString(value, 2).PadLeft(3, '0');
+                    case 4: // Changed: Symbol and number instead of binary
+                        // Characters: ◊ ♦ ■ ● ▲ △
+                        string[] symbols = { "◊", "♦", "■", "●", "▲", "△" };
+                        return symbols[faceIndex];
                         
                     case 5: // Hex with "H" prefix (italic)
                         return "H" + value.ToString("X");
