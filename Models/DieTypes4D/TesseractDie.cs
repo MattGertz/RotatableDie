@@ -471,7 +471,7 @@ namespace RotatableDie.Models.DieTypes4D
                 
                 // Create texture for this face using the specialized method
                 // Use original baseColor for texture (not the transparency-modified cellColor)
-                BitmapImage texture = TextureService.CreateTesseractCellTexture(
+                BitmapImage texture = TextureService.Create4DCellTexture(
                     cell.Number,         // Cell index for numbering system
                     faceIndex,           // Face number
                     baseColor,           // Original base color selected by user (not cellColor)

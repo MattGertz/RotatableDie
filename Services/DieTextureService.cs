@@ -354,7 +354,7 @@ namespace RotatableDie.Services
         /// <param name="sharingCellIndex">The index of the cell sharing this face, if shared</param>
         /// <param name="outputSize">The size of the output texture in pixels</param>
         /// <returns>A BitmapImage texture for the cell face</returns>
-        public BitmapImage CreateTesseractCellTexture(int cellIndex, int faceIndex, Color baseColor, bool isShared, int sharingCellIndex, int outputSize = 256)
+        public BitmapImage Create4DCellTexture(int cellIndex, int faceIndex, Color baseColor, bool isShared, int sharingCellIndex, int outputSize = 256)
         {
             // Create a bitmap that we'll draw onto
             RenderTargetBitmap renderBitmap = new RenderTargetBitmap(outputSize, outputSize, 96, 96, PixelFormats.Pbgra32);

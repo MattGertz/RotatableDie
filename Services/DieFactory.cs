@@ -24,8 +24,9 @@ namespace RotatableDie.Models
                 DieType.Dodecahedron => new DodecahedronDie(_textureService),
                 DieType.Icosahedron => new IcosahedronDie(_textureService),
                 DieType.Decahedron => new DecahedronDie(_textureService),
-                DieType.Tesseract => new TesseractDie(_textureService),
                 DieType.Pentachoron => new PentachoronDie(_textureService),
+                DieType.Hexadecachoron => new HexadecachoronDie(_textureService),
+                DieType.Tesseract => new TesseractDie(_textureService),
                 _ => throw new ArgumentException($"Unknown die type: {dieType}")
             };
         }
