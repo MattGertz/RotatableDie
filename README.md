@@ -6,7 +6,7 @@ A .NET 9 WPF application for visualizing and interacting with 3D and 4D polyhedr
 
 ## Overview
 
-3D & 4D Die Viewer is an interactive application that allows users to view and rotate different types of polyhedral dice in three-dimensional and four-dimensional space. The application provides realistic renderings of standard polyhedral dice (d4, d6, d8, d10, d12, d20) with customizable colors and intuitive rotation controls, plus a mind-bending tesseract (4D hypercube) visualization.
+3D & 4D Die Viewer is an interactive application that allows users to view and rotate different types of polyhedral dice in three-dimensional and four-dimensional space. The application provides realistic renderings of standard polyhedral dice (d4, d6, d8, d10, d12, d20) with customizable colors and intuitive rotation controls, plus mind-bending 4D visualizations of the pentachoron (5-cell), hexadecachoron (16-cell), and tesseract (8-cell hypercube).
 
 ## Features
 
@@ -17,14 +17,16 @@ A .NET 9 WPF application for visualizing and interacting with 3D and 4D polyhedr
   - Decahedron/Pentagonal Trapezohedron (d10)
   - Dodecahedron (d12)
   - Icosahedron (d20)
-  - Tesseract/Hypercube (4D die)
+  - Pentachoron (5-cell, 4D simplex)
+  - Hexadecachoron (16-cell, 4D cross-polytope)
+  - Tesseract/Hypercube (8-cell, 4D cube)
 
 - **Interactive 3D Rotation**: Naturally manipulate dice in 3D space:
   - Left-click + drag to rotate around X and Y axes
   - Right-click + drag to spin around the Z-axis (view direction)
   - Smart movement detection to determine rotation intent
 
-- **Interactive 4D Rotation** (Tesseract only):
+- **Interactive 4D Rotation** (for 4D dice only):
   - Middle-click + drag to rotate around XW and YW planes
   - Shift + middle-click to rotate around ZW plane
   - Mouse wheel for additional ZW rotation
@@ -44,6 +46,16 @@ A .NET 9 WPF application for visualizing and interacting with 3D and 4D polyhedr
   - Surface texture effects with contrast-optimized number visibility
 
 - **Mathematically Accurate**: Proper geometric construction of all polyhedra with correct face numbering and orientation
+
+## 4D Dice Highlights
+
+The application features three fascinating 4D dice:
+
+- **Tesseract (8-cell)**: The 4D hypercube with 8 cubic cells. Each cell uses a different numbering system (standard numbers, letters, Roman numerals, etc.) to help visualize the structure.
+
+- **Pentachoron (5-cell)**: The simplest regular 4D polytope (4D simplex) with 5 tetrahedral cells. Each cell uses a different numbering system to distinguish them.
+
+- **Hexadecachoron (16-cell)**: The 4D cross-polytope with 16 tetrahedral cells. Interestingly, each tetrahedral cell has 4 faces, but one face always points toward the interior of the shape. This means regardless of how you rotate the hexadecachoron in 4D space, you'll only ever see faces numbered 1, 2, and 3 on each cell.
 
 ## Technical Details
 

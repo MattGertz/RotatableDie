@@ -83,6 +83,10 @@ namespace RotatableDie.Models.DieTypes4D
             // The hexadecachoron has 16 tetrahedral cells
             // Each cell is formed by selecting one vertex from each adjacent pair of opposite vertices
             
+            // Note: Each tetrahedral cell has 4 faces (0-3), but face 3 is always pointed toward
+            // the interior of the 16-cell and thus never visible from outside the polytope.
+            // This is why users only ever see faces 0, 1, and 2 (numbered 1, 2, and 3).
+            
             // Create all possible combinations of selecting one vertex from each opposite pair
             for (int x = 0; x < 2; x++)
             {
