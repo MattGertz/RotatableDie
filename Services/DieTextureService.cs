@@ -257,6 +257,12 @@ namespace RotatableDie.Services
                 fontStyle = FontStyles.Italic;
                 displayText = text.Substring(1); // Remove prefix for display
             }
+            // Check for Roman numeral prefix (use smaller font size)
+            else if (text.StartsWith("R"))
+            {
+                fontSize *= 0.8; // Reduce font size for Roman numerals
+                displayText = text.Substring(1); // Remove prefix for display
+            }
             
             return new FormattedText(
                 displayText,
@@ -482,69 +488,142 @@ namespace RotatableDie.Services
         /// </summary>
         private int GetSharingCellIndex(int cellIndex, int faceIndex)
         {
-            // In a tesseract (4D hypercube), certain faces are shared between two cubic cells
+            // In a 4D die, certain faces are shared between cells
             // This maps the sharing relationship for each cell and face
             // -1 means the face is not shared
             
-            // These mappings are based on a tesseract where:
-            // - Cell 0 is at origin (0,0,0,0)
-            // - Cell 1 is at (1,0,0,0)
-            // - Cell 2 is at (0,1,0,0)
-            // - Cell 3 is at (1,1,0,0)
-            // - Cell 4 is at (0,0,1,0)
-            // - Cell 5 is at (1,0,1,0)
-            // - Cell 6 is at (0,1,1,0)
-            // - Cell 7 is at (1,1,1,0)
-            
-            switch (cellIndex)
+            // Check if this is a Tesseract (4D hypercube) with 8 cells
+            if (cellIndex < 8)
             {
-                case 0: // Origin cell (0,0,0,0)
-                    if (faceIndex == 0) return 1; // +X face connects to cell 1
-                    if (faceIndex == 1) return 2; // +Y face connects to cell 2
-                    if (faceIndex == 2) return 4; // +Z face connects to cell 4
-                    break;
+                // These mappings are based on a tesseract where:
+                // - Cell 0 is at origin (0,0,0,0)
+                // - Cell 1 is at (1,0,0,0)
+                // - Cell 2 is at (0,1,0,0)
+                // - Cell 3 is at (1,1,0,0)
+                // - Cell 4 is at (0,0,1,0)
+                // - Cell 5 is at (1,0,1,0)
+                // - Cell 6 is at (0,1,1,0)
+                // - Cell 7 is at (1,1,1,0)
                 
-                case 1: // (1,0,0,0)
-                    if (faceIndex == 3) return 0; // -X face connects to cell 0
-                    if (faceIndex == 1) return 3; // +Y face connects to cell 3
-                    if (faceIndex == 2) return 5; // +Z face connects to cell 5
-                    break;
+                switch (cellIndex)
+                {
+                    case 0: // Origin cell (0,0,0,0)
+                        if (faceIndex == 0) return 1; // +X face connects to cell 1
+                        if (faceIndex == 1) return 2; // +Y face connects to cell 2
+                        if (faceIndex == 2) return 4; // +Z face connects to cell 4
+                        break;
+                    
+                    case 1: // (1,0,0,0)
+                        if (faceIndex == 3) return 0; // -X face connects to cell 0
+                        if (faceIndex == 1) return 3; // +Y face connects to cell 3
+                        if (faceIndex == 2) return 5; // +Z face connects to cell 5
+                        break;
+                    
+                    case 2: // (0,1,0,0)
+                        if (faceIndex == 0) return 3; // +X face connects to cell 3
+                        if (faceIndex == 4) return 0; // -Y face connects to cell 0
+                        if (faceIndex == 2) return 6; // +Z face connects to cell 6
+                        break;
+                    
+                    case 3: // (1,1,0,0)
+                        if (faceIndex == 3) return 2; // -X face connects to cell 2
+                        if (faceIndex == 4) return 1; // -Y face connects to cell 1
+                        if (faceIndex == 2) return 7; // +Z face connects to cell 7
+                        break;
+                    
+                    case 4: // (0,0,1,0)
+                        if (faceIndex == 0) return 5; // +X face connects to cell 5
+                        if (faceIndex == 1) return 6; // +Y face connects to cell 6
+                        if (faceIndex == 5) return 0; // -Z face connects to cell 0
+                        break;
+                    
+                    case 5: // (1,0,1,0)
+                        if (faceIndex == 3) return 4; // -X face connects to cell 4
+                        if (faceIndex == 1) return 7; // +Y face connects to cell 7
+                        if (faceIndex == 5) return 1; // -Z face connects to cell 1
+                        break;
+                    
+                    case 6: // (0,1,1,0)
+                        if (faceIndex == 0) return 7; // +X face connects to cell 7
+                        if (faceIndex == 4) return 4; // -Y face connects to cell 4
+                        if (faceIndex == 5) return 2; // -Z face connects to cell 2
+                        break;
+                    
+                    case 7: // (1,1,1,0)
+                        if (faceIndex == 3) return 6; // -X face connects to cell 6
+                        if (faceIndex == 4) return 5; // -Y face connects to cell 5
+                        if (faceIndex == 5) return 3; // -Z face connects to cell 3
+                        break;
+                }
+            }
+            else if (cellIndex < 16)
+            {
+                // For the 16-cell Hexadecachoron (16-cell 4D simplex)
+                // Each tetrahedral cell shares its triangular faces with 4 neighboring cells
+                // This is a simplified adjacency model for the 16-cell
                 
-                case 2: // (0,1,0,0)
-                    if (faceIndex == 0) return 3; // +X face connects to cell 3
-                    if (faceIndex == 4) return 0; // -Y face connects to cell 0
-                    if (faceIndex == 2) return 6; // +Z face connects to cell 6
-                    break;
+                int cellOffset = cellIndex - 8; // Convert to 0-7 index for the additional 8 cells
                 
-                case 3: // (1,1,0,0)
-                    if (faceIndex == 3) return 2; // -X face connects to cell 2
-                    if (faceIndex == 4) return 1; // -Y face connects to cell 1
-                    if (faceIndex == 2) return 7; // +Z face connects to cell 7
-                    break;
-                
-                case 4: // (0,0,1,0)
-                    if (faceIndex == 0) return 5; // +X face connects to cell 5
-                    if (faceIndex == 1) return 6; // +Y face connects to cell 6
-                    if (faceIndex == 5) return 0; // -Z face connects to cell 0
-                    break;
-                
-                case 5: // (1,0,1,0)
-                    if (faceIndex == 3) return 4; // -X face connects to cell 4
-                    if (faceIndex == 1) return 7; // +Y face connects to cell 7
-                    if (faceIndex == 5) return 1; // -Z face connects to cell 1
-                    break;
-                
-                case 6: // (0,1,1,0)
-                    if (faceIndex == 0) return 7; // +X face connects to cell 7
-                    if (faceIndex == 4) return 4; // -Y face connects to cell 4
-                    if (faceIndex == 5) return 2; // -Z face connects to cell 2
-                    break;
-                
-                case 7: // (1,1,1,0)
-                    if (faceIndex == 3) return 6; // -X face connects to cell 6
-                    if (faceIndex == 4) return 5; // -Y face connects to cell 5
-                    if (faceIndex == 5) return 3; // -Z face connects to cell 3
-                    break;
+                // For each face in a tetrahedral cell (4 triangular faces)
+                // Map to the correct adjacent cell based on topology of 16-cell
+                switch (cellOffset)
+                {
+                    case 0:
+                        if (faceIndex == 0) return 9;  // Face 0 connects to cell 9
+                        if (faceIndex == 1) return 10; // Face 1 connects to cell 10
+                        if (faceIndex == 2) return 12; // Face 2 connects to cell 12
+                        if (faceIndex == 3) return 14; // Face 3 connects to cell 14
+                        break;
+                        
+                    case 1:
+                        if (faceIndex == 0) return 8;  // Face 0 connects to cell 8
+                        if (faceIndex == 1) return 11; // Face 1 connects to cell 11
+                        if (faceIndex == 2) return 13; // Face 2 connects to cell 13
+                        if (faceIndex == 3) return 15; // Face 3 connects to cell 15
+                        break;
+                        
+                    case 2:
+                        if (faceIndex == 0) return 8;  // Face 0 connects to cell 8
+                        if (faceIndex == 1) return 11; // Face 1 connects to cell 11
+                        if (faceIndex == 2) return 13; // Face 2 connects to cell 13
+                        if (faceIndex == 3) return 15; // Face 3 connects to cell 15
+                        break;
+                        
+                    case 3:
+                        if (faceIndex == 0) return 9;  // Face 0 connects to cell 9
+                        if (faceIndex == 1) return 10; // Face 1 connects to cell 10 
+                        if (faceIndex == 2) return 12; // Face 2 connects to cell 12
+                        if (faceIndex == 3) return 14; // Face 3 connects to cell 14
+                        break;
+                        
+                    case 4:
+                        if (faceIndex == 0) return 9;  // Face 0 connects to cell 9
+                        if (faceIndex == 1) return 11; // Face 1 connects to cell 11
+                        if (faceIndex == 2) return 12; // Face 2 connects to cell 12
+                        if (faceIndex == 3) return 15; // Face 3 connects to cell 15
+                        break;
+                        
+                    case 5:
+                        if (faceIndex == 0) return 8;  // Face 0 connects to cell 8
+                        if (faceIndex == 1) return 10; // Face 1 connects to cell 10
+                        if (faceIndex == 2) return 13; // Face 2 connects to cell 13
+                        if (faceIndex == 3) return 14; // Face 3 connects to cell 14
+                        break;
+                        
+                    case 6:
+                        if (faceIndex == 0) return 8;  // Face 0 connects to cell 8
+                        if (faceIndex == 1) return 10; // Face 1 connects to cell 10
+                        if (faceIndex == 2) return 12; // Face 2 connects to cell 12
+                        if (faceIndex == 3) return 15; // Face 3 connects to cell 15
+                        break;
+                        
+                    case 7:
+                        if (faceIndex == 0) return 9;  // Face 0 connects to cell 9
+                        if (faceIndex == 1) return 11; // Face 1 connects to cell 11
+                        if (faceIndex == 2) return 13; // Face 2 connects to cell 13
+                        if (faceIndex == 3) return 14; // Face 3 connects to cell 14
+                        break;
+                }
             }
             
             return -1; // No sharing
@@ -559,42 +638,109 @@ namespace RotatableDie.Services
         /// <returns>Text to display on the face</returns>
         private string GetCellFaceText(int cellIndex, int faceIndex)
         {
-            // For each of the 8 cubic cells in the tesseract, use a different numbering system
-            // This helps visually distinguish the cells
-            switch (cellIndex)
+            int value = faceIndex + 1;
+    
+            // For the 8-cell Tesseract (hypercube)
+            if (cellIndex < 8)
             {
-                case 0: // Use Arabic numerals 1-6
-                    return (faceIndex + 1).ToString();
-                
-                case 1: // Use letters A-F
-                    return ((char)('A' + faceIndex)).ToString();
-                
-                case 2: // Use Roman numerals I-VI
-                    string[] romanNumerals = { "I", "II", "III", "IV", "V", "VI" };
-                    return romanNumerals[faceIndex];
-                
-                case 3: // Use Greek letters
-                    string[] greekLetters = { "α", "β", "γ", "δ", "ε", "ζ" };
-                    return greekLetters[faceIndex];
-                
-                case 4: // Use binary numbers 001-110 (BOLD)
-                    // Prefix with 'B' to indicate binary and allow CustomFormattedText to detect
-                    return "B" + Convert.ToString(faceIndex + 1, 2).PadLeft(3, '0');
-                
-                case 5: // Use hexadecimal numbers 1-6 (ITALIC)
-                    // Prefix with 'H' to indicate hex and allow CustomFormattedText to detect
-                    return "H" + (faceIndex + 1).ToString("X");
-                
-                case 6: // Use dot patterns like on dice
-                    return new string('●', faceIndex + 1);
-                
-                case 7: // Use numerals in circles ①-⑥
-                    char[] circledNumbers = { '①', '②', '③', '④', '⑤', '⑥' };
-                    return circledNumbers[faceIndex].ToString();
-                
-                default:
-                    return (faceIndex + 1).ToString();
+                switch (cellIndex)
+                {
+                    case 0: // Regular numbers
+                        return value.ToString();
+                        
+                    case 1: // Letters
+                        return ((char)('A' + faceIndex)).ToString();
+                        
+                    case 2: // Roman numerals with "R" prefix
+                        return "R" + ConvertToRomanNumeral(value);
+                        
+                    case 3: // Greek letters
+                        string[] greekLetters = { "α", "β", "γ", "δ", "ε", "ζ" };
+                        return greekLetters[faceIndex];
+                        
+                    case 4: // Binary with "B" prefix (bold)
+                        return "B" + Convert.ToString(value, 2).PadLeft(3, '0');
+                        
+                    case 5: // Hex with "H" prefix (italic)
+                        return "H" + value.ToString("X");
+                        
+                    case 6: // Dots
+                        return new string('●', value);
+                        
+                    case 7: // Circled numbers
+                        string[] circledNumbers = { "①", "②", "③", "④", "⑤", "⑥" };
+                        return circledNumbers[faceIndex];
+                }
             }
+            // For the 16-cell Hexadecachoron
+            else if (cellIndex < 24)
+            {
+                // Each tetrahedral cell has 4 triangular faces (value ranges from 1-4)
+                int adjustedValue = faceIndex + 1; // Face values are 1-4 for tetrahedra
+                
+                switch (cellIndex - 8) // Adjust to 0-15 range for the cells
+                {
+                    case 0: // Prefix with "x" instead of double digits
+                        return "x" + adjustedValue.ToString();
+                        
+                    case 1: // Prefix with "y" instead of double letters
+                        return "y" + adjustedValue.ToString();
+                        
+                    case 2: // Changed: Square brackets prefix instead of wrapping
+                        return "[" + adjustedValue.ToString();
+                        
+                    case 3: // Changed: Curly braces prefix instead of wrapping
+                        return "{" + adjustedValue.ToString();
+                        
+                    case 4: // Asterisk prefix
+                        return "*" + adjustedValue.ToString();
+                        
+                    case 5: // Hash prefix
+                        return "#" + adjustedValue.ToString();
+                        
+                    case 6: // Diamond prefix
+                        return "◆" + adjustedValue.ToString();
+                        
+                    case 7: // Changed: Underscore prefix instead of wrapping
+                        return "_" + adjustedValue.ToString();
+                        
+                    case 8: // Plus prefix
+                        return "+" + adjustedValue.ToString();
+                        
+                    case 9: // Tilde prefix
+                        return "~" + adjustedValue.ToString();
+                        
+                    case 10: // Changed: Parentheses prefix instead of wrapping
+                        return "(" + adjustedValue.ToString();
+                        
+                    case 11: // Caret prefix
+                        return "^" + adjustedValue.ToString();
+                        
+                    case 12: // Equal prefix
+                        return "=" + adjustedValue.ToString();
+                        
+                    case 13: // At symbol prefix
+                        return "@" + adjustedValue.ToString();
+                        
+                    case 14: // Dollar sign prefix
+                        return "$" + adjustedValue.ToString();
+                        
+                    case 15: // Percent suffix - keep as is
+                        return adjustedValue.ToString() + "%";
+                }
+            }
+            
+            // Default fallback
+            return value.ToString();
+        }
+
+        private string ConvertToRomanNumeral(int number)
+        {
+            // Simple Roman numeral conversion for 1-6
+            string[] romanNumerals = { "I", "II", "III", "IV", "V", "VI" };
+            if (number >= 1 && number <= 6)
+                return romanNumerals[number - 1];
+            return number.ToString();
         }
 
         /// <summary>

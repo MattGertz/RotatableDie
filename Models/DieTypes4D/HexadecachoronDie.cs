@@ -368,50 +368,44 @@ namespace RotatableDie.Models.DieTypes4D
                 triangleMesh.Positions.Add(vertices[triangleFaces[faceIdx][1]]);
                 triangleMesh.Positions.Add(vertices[triangleFaces[faceIdx][2]]);
                 
-                // Add triangle indices
-                triangleMesh.TriangleIndices.Add(0);
-                triangleMesh.TriangleIndices.Add(1);
-                triangleMesh.TriangleIndices.Add(2);
-                
-                // Add texture coordinates if we want to use textures
-                triangleMesh.TextureCoordinates.Add(new Point(0, 0));
-                triangleMesh.TextureCoordinates.Add(new Point(1, 0));
-                triangleMesh.TextureCoordinates.Add(new Point(0.5, 1));
-                
-                // Calculate face normal for lighting
+                // Calculate face normal for correct orientation
                 Vector3D v1 = vertices[triangleFaces[faceIdx][1]] - vertices[triangleFaces[faceIdx][0]];
                 Vector3D v2 = vertices[triangleFaces[faceIdx][2]] - vertices[triangleFaces[faceIdx][0]];
                 Vector3D normal = Vector3D.CrossProduct(v1, v2);
                 normal.Normalize();
                 
-                // Check if the normal is facing toward the center or away from it
-                // For 4D dice, we want the normals to point away from the origin in general
+                // Calculate face center
                 Point3D faceCenter = new Point3D(
                     (vertices[triangleFaces[faceIdx][0]].X + vertices[triangleFaces[faceIdx][1]].X + vertices[triangleFaces[faceIdx][2]].X) / 3,
                     (vertices[triangleFaces[faceIdx][0]].Y + vertices[triangleFaces[faceIdx][1]].Y + vertices[triangleFaces[faceIdx][2]].Y) / 3,
                     (vertices[triangleFaces[faceIdx][0]].Z + vertices[triangleFaces[faceIdx][1]].Z + vertices[triangleFaces[faceIdx][2]].Z) / 3
                 );
                 
-                Vector3D toCenter = new Vector3D(-faceCenter.X, -faceCenter.Y, -faceCenter.Z);
+                // Direction from origin to face center
+                Vector3D toCenter = new Vector3D(faceCenter.X, faceCenter.Y, faceCenter.Z);
                 toCenter.Normalize();
                 
-                // If the normal is pointing inward (toward the center), flip it
-                if (Vector3D.DotProduct(normal, toCenter) > 0)
-                {
-                    normal = -normal;
-                    // Also flip the triangle indices to maintain proper winding
-                    triangleMesh.TriangleIndices.Clear();
-                    triangleMesh.TriangleIndices.Add(0);
-                    triangleMesh.TriangleIndices.Add(2);
-                    triangleMesh.TriangleIndices.Add(1);
-                }
+                // Check if normal is pointing outward (away from center)
+                // For tetrahedra in a 16-cell, we want normals pointing outward
+                bool normalPointingOutward = Vector3D.DotProduct(normal, toCenter) > 0;
                 
-                // Add normal for each vertex
-                triangleMesh.Normals.Add(normal);
-                triangleMesh.Normals.Add(normal);
-                triangleMesh.Normals.Add(normal);
+                // Force all texture coordinates to be in the same orientation regardless of normal direction
+                // This empirical fix ensures numbers always appear correctly oriented
+                triangleMesh.TriangleIndices.Add(0);
+                triangleMesh.TriangleIndices.Add(1);
+                triangleMesh.TriangleIndices.Add(2);
                 
-                // Apply texture to all faces
+                // Always use the same texture coordinate orientation to fix backwards numbers
+                triangleMesh.TextureCoordinates.Add(new Point(0, 0));
+                triangleMesh.TextureCoordinates.Add(new Point(1, 0));
+                triangleMesh.TextureCoordinates.Add(new Point(0.5, 1));
+                
+                // Add normal for each vertex - still respecting the actual normal direction
+                triangleMesh.Normals.Add(normalPointingOutward ? normal : -normal);
+                triangleMesh.Normals.Add(normalPointingOutward ? normal : -normal);
+                triangleMesh.Normals.Add(normalPointingOutward ? normal : -normal);
+                
+                // Create texture for this face
                 ImageBrush faceBrush = new ImageBrush(
                     TextureService.Create4DCellTexture(
                         cell.Number - 1,       // Cell index 
@@ -432,6 +426,7 @@ namespace RotatableDie.Models.DieTypes4D
                 
                 // Create and add the textured model
                 GeometryModel3D texturedModel = new GeometryModel3D(triangleMesh, textureMaterial);
+                texturedModel.BackMaterial = textureMaterial; // Make both sides visible
                 modelGroup.Children.Add(texturedModel);
                 
                 // Add the wireframe edges for this face for better visibility
