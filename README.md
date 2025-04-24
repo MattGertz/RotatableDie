@@ -6,7 +6,7 @@ A .NET 9 WPF application for visualizing and interacting with 3D and 4D polyhedr
 
 ## Overview
 
-3D & 4D Die Viewer is an interactive application that allows users to view and rotate different types of polyhedral dice in three-dimensional and four-dimensional space. The application provides realistic renderings of standard polyhedral dice (d4, d6, d8, d10, d12, d20) with customizable colors and intuitive rotation controls, plus mind-bending 4D visualizations of the pentachoron (5-cell), hexadecachoron (16-cell), and tesseract (8-cell hypercube).
+3D & 4D Die Viewer is an interactive application that allows users to view and rotate different types of polyhedral dice in three-dimensional and four-dimensional space. The application provides realistic renderings of standard polyhedral dice (d4, d6, d8, d10, d12, d20) with customizable colors and intuitive rotation controls, plus mind-bending 4D visualizations of the pentachoron (5-cell), hexadecachoron (16-cell), tesseract (8-cell hypercube), and octaplex (24-cell).
 
 ## Features
 
@@ -20,6 +20,7 @@ A .NET 9 WPF application for visualizing and interacting with 3D and 4D polyhedr
   - Pentachoron (5-cell, 4D simplex)
   - Hexadecachoron (16-cell, 4D cross-polytope)
   - Tesseract/Hypercube (8-cell, 4D cube)
+  - Octaplex (24-cell, 4D polytope)
 
 - **Interactive 3D Rotation**: Naturally manipulate dice in 3D space:
   - Left-click + drag to rotate around X and Y axes
@@ -49,13 +50,17 @@ A .NET 9 WPF application for visualizing and interacting with 3D and 4D polyhedr
 
 ## 4D Dice Highlights
 
-The application features three fascinating 4D dice:
+The application features four fascinating 4D dice:
 
 - **Tesseract (8-cell)**: The 4D hypercube with 8 cubic cells. Each cell uses a different numbering system (standard numbers, letters, Roman numerals, etc.) to help visualize the structure.
 
 - **Pentachoron (5-cell)**: The simplest regular 4D polytope (4D simplex) with 5 tetrahedral cells. Each cell uses a different numbering system to distinguish them.
 
 - **Hexadecachoron (16-cell)**: The 4D cross-polytope with 16 tetrahedral cells. Interestingly, each tetrahedral cell has 4 faces, but one face always points toward the interior of the shape. This means regardless of how you rotate the hexadecachoron in 4D space, you'll only ever see faces numbered 1, 2, and 3 on each cell.
+
+- **Octaplex (24-cell)**: A unique regular 4D polytope with no direct 3D analog. It consists of 24 octahedral cells, 96 triangular faces, 96 edges, and 24 vertices. Each octahedral cell has 8 triangular faces and is represented with a distinct numbering system.
+  
+  **Performance Note**: The Octaplex is the most computationally intensive shape in this application due to its complexity (24 cells, 96 faces). On machines without dedicated graphics hardware, rendering may be slow with textured faces enabled. For smoother performance on less powerful machines, use wireframe mode when viewing the Octaplex. High-end graphics cards (like NVIDIA RTX series) are recommended for optimal performance with textured rendering.
 
 ## Technical Details
 
@@ -144,8 +149,16 @@ This demonstrated that while AI assistants like Copilot have impressive capabili
 2. Choose a color for your die from the color selector
 3. Toggle wireframe mode using the checkbox to switch between solid and wireframe rendering
 4. Interact with the die using mouse controls:
-   - For 3D dice: Left-click + drag to rotate, right-click + drag for z-axis rotation
-   - For the tesseract: Also use middle-click + drag to rotate in 4D space
+   - **For 3D dice:**
+     - Left-click + drag to rotate die
+     - Right-click + drag for z-axis spin
+   - **For 4D dice:**
+     - Left-click + drag to rotate in 3D
+     - Right-click + drag for z-axis spin
+     - Middle-click + drag for XW/YW rotation
+     - Mouse wheel for ZW rotation
+     - Shift+wheel for YW rotation
+     - Ctrl+wheel for XW rotation
 
 ## Requirements
 

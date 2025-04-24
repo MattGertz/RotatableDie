@@ -639,7 +639,7 @@ namespace RotatableDie.Services
         private string GetCellFaceText(int cellIndex, int faceIndex)
         {
             int value = faceIndex + 1;
-    
+            
             // For the 8-cell Tesseract (hypercube)
             if (cellIndex < 8)
             {
@@ -654,31 +654,31 @@ namespace RotatableDie.Services
                     case 2: // Roman numerals with "R" prefix
                         return "R" + ConvertToRomanNumeral(value);
                         
-                    case 3: // Greek letters
-                        string[] greekLetters = { "α", "β", "γ", "δ", "ε", "ζ" };
-                        return greekLetters[faceIndex];
+                    case 3: // Greek letters - expanded to 8 characters
+                        string[] greekLetters = { "α", "β", "γ", "δ", "ε", "ζ", "η", "θ" };
+                        return greekLetters[Math.Min(faceIndex, greekLetters.Length - 1)];
                         
-                    case 4: // Changed: Symbol and number instead of binary
-                        // Characters: ◊ ♦ ■ ● ▲ △
-                        string[] symbols = { "◊", "♦", "■", "●", "▲", "△" };
-                        return symbols[faceIndex];
+                    case 4: // Symbols - expanded to 8 symbols
+                        string[] symbols = { "◊", "♦", "■", "●", "▲", "△", "♥", "♠" };
+                        return symbols[Math.Min(faceIndex, symbols.Length - 1)];
                         
                     case 5: // Hex with "H" prefix (italic)
                         return "H" + value.ToString("X");
                         
-                    case 6: // Dots
-                        return new string('●', value);
+                    case 6: // Changed from dots to musical symbols
+                        string[] musicalSymbols = { "♩", "♪", "♫", "♬", "§", "¶", "†", "‡" };
+                        return musicalSymbols[Math.Min(faceIndex, musicalSymbols.Length - 1)];
                         
-                    case 7: // Circled numbers
-                        string[] circledNumbers = { "①", "②", "③", "④", "⑤", "⑥" };
-                        return circledNumbers[faceIndex];
+                    case 7: // Circled numbers - expanded to 8
+                        string[] circledNumbers = { "①", "②", "③", "④", "⑤", "⑥", "⑦", "⑧" };
+                        return circledNumbers[Math.Min(faceIndex, circledNumbers.Length - 1)];
                 }
             }
             // For the 16-cell Hexadecachoron
             else if (cellIndex < 24)
             {
-                // Each tetrahedral cell has 4 triangular faces (value ranges from 1-4)
-                int adjustedValue = faceIndex + 1; // Face values are 1-4 for tetrahedra
+                // Each tetrahedral cell has 4 triangular faces (value ranges from 1-4 for tetrahedra)
+                int adjustedValue = faceIndex + 1;
                 
                 switch (cellIndex - 8) // Adjust to 0-15 range for the cells
                 {
@@ -729,6 +729,43 @@ namespace RotatableDie.Services
                         
                     case 15: // Percent suffix - keep as is
                         return adjustedValue.ToString() + "%";
+                }
+            }
+            // For the 24-cell Octaplex
+            else if (cellIndex < 48) // Indices 24-47 reserved for Octaplex
+            {
+                // Each octahedral cell has 8 triangular faces (value ranges from 1-8)
+                int adjustedValue = faceIndex + 1;
+                
+                switch (cellIndex - 24) // Adjust to 0-23 range for the cells
+                {
+                    // First 16 cells use the same numbering systems as Hexadecachoron
+                    case 0: return "x" + adjustedValue.ToString();
+                    case 1: return "y" + adjustedValue.ToString();
+                    case 2: return "[" + adjustedValue.ToString();
+                    case 3: return "{" + adjustedValue.ToString();
+                    case 4: return "*" + adjustedValue.ToString();
+                    case 5: return "#" + adjustedValue.ToString();
+                    case 6: return "◆" + adjustedValue.ToString();
+                    case 7: return "_" + adjustedValue.ToString();
+                    case 8: return "+" + adjustedValue.ToString();
+                    case 9: return "~" + adjustedValue.ToString();
+                    case 10: return "(" + adjustedValue.ToString();
+                    case 11: return "^" + adjustedValue.ToString();
+                    case 12: return "=" + adjustedValue.ToString();
+                    case 13: return "@" + adjustedValue.ToString();
+                    case 14: return "$" + adjustedValue.ToString();
+                    case 15: return adjustedValue.ToString() + "%";
+                    
+                    // Additional 8 cells for the Octaplex (cells 16-23)
+                    case 16: return ">" + adjustedValue.ToString(); // Greater than
+                    case 17: return "<" + adjustedValue.ToString(); // Less than
+                    case 18: return adjustedValue.ToString() + "°"; // Degree symbol
+                    case 19: return "&" + adjustedValue.ToString(); // Ampersand
+                    case 20: return "!" + adjustedValue.ToString(); // Exclamation mark
+                    case 21: return "?" + adjustedValue.ToString(); // Question mark
+                    case 22: return "|" + adjustedValue.ToString(); // Vertical bar
+                    case 23: return adjustedValue.ToString() + "'"; // Prime symbol
                 }
             }
             

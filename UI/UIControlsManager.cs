@@ -262,16 +262,20 @@ namespace RotatableDie.UI
         /// <summary>
         /// Updates the rotation instructions based on the current die type
         /// </summary>
-        private void UpdateRotationInstructions(DieType dieType)
+        public void UpdateRotationInstructions(DieType dieType)
         {
-            if (dieType == DieType.Tesseract)
+            string rotationInstructions = "Left-click + drag to rotate die • Right-click + drag for z-axis spin";
+            
+            // Special case for 4D dice - show additional rotation controls in organized groups
+            if (dieType == DieType.Tesseract || dieType == DieType.Pentachoron || 
+                dieType == DieType.Hexadecachoron || dieType == DieType.Octaplex)
             {
-                _instructionsBlock.Text = "Left-click + drag to rotate in 3D • Right-click + drag for z-axis spin • Middle-click + drag to rotate in 4D";
+                rotationInstructions = "3D Controls: Left-click + drag to rotate • Right-click + drag for z-axis spin\n" +
+                                      "4D Controls: Middle-click + drag for XW/YW rotation • Mouse wheel for ZW rotation\n" +
+                                      "            Shift+wheel for YW • Ctrl+wheel for XW rotation";
             }
-            else
-            {
-                _instructionsBlock.Text = "Left-click + drag to rotate die • Right-click + drag for z-axis spin";
-            }
+            
+            _instructionsBlock.Text = rotationInstructions;
         }
     }
     
