@@ -32,6 +32,12 @@ A .NET 9 WPF application for visualizing and interacting with 3D and 4D polyhedr
 
 - **Customizable Appearance**: Choose from a wide variety of colors for your dice
 
+- **Wireframe Mode**: Toggle between solid and wireframe rendering:
+  - Clearly visualize the geometric structure of each die
+  - See through complex shapes to understand their topology
+  - Maintain full rotation functionality in both modes
+  - Special 4D wireframe rendering for the tesseract with depth-based transparency
+
 - **Realistic Rendering**: Dice include:
   - Properly positioned numbers
   - Orientation indicators (underlines) for 6 and 9 on d10, d12 and d20
@@ -124,7 +130,8 @@ This demonstrated that while AI assistants like Copilot have impressive capabili
 
 1. Select a die type from the dropdown menu
 2. Choose a color for your die from the color selector
-3. Interact with the die using mouse controls:
+3. Toggle wireframe mode using the checkbox to switch between solid and wireframe rendering
+4. Interact with the die using mouse controls:
    - For 3D dice: Left-click + drag to rotate, right-click + drag for z-axis rotation
    - For the tesseract: Also use middle-click + drag to rotate in 4D space
 

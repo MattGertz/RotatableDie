@@ -22,6 +22,6 @@ namespace RotatableDie.Models
         /// <summary>
         /// Creates the geometry for this die type and adds it to the model group
         /// </summary>
-        public abstract void CreateGeometry(Model3DGroup modelGroup, Color color);
+        public abstract void CreateGeometry(Model3DGroup modelGroup, Color color, bool wireframeMode = false);
     }
 }

@@ -39,22 +39,22 @@ namespace RotatableDie.Models.DieTypes4D
         /// <summary>
         /// Creates the 3D geometry based on the current 4D rotation state
         /// </summary>
-        public override void CreateGeometry(Model3DGroup modelGroup, Color color)
+        public override void CreateGeometry(Model3DGroup modelGroup, Color color, bool wireframeMode = false)
         {
             // Update 4D rotation
-            ApplyRotation4D();
+            Apply4DRotation();
             
             // Project from 4D to 3D
             ProjectTo3D();
             
             // Render the projected 3D geometry
-            RenderProjectedGeometry(modelGroup, color);
+            RenderProjectedGeometry(modelGroup, color, wireframeMode);
         }
         
         /// <summary>
         /// Apply 4D rotations to vertices
         /// </summary>
-        protected virtual void ApplyRotation4D()
+        protected virtual void Apply4DRotation()
         {
             // Make a copy of the original vertices
             if (CurrentVertices4D == null || CurrentVertices4D.Length != OriginalVertices4D.Length)
@@ -79,7 +79,7 @@ namespace RotatableDie.Models.DieTypes4D
         /// <summary>
         /// Render the 3D projected geometry to the model group
         /// </summary>
-        protected abstract void RenderProjectedGeometry(Model3DGroup modelGroup, Color color);
+        protected abstract void RenderProjectedGeometry(Model3DGroup modelGroup, Color color, bool wireframeMode = false);
         
         /// <summary>
         /// Update the 4D rotation angles

@@ -14,7 +14,7 @@ namespace RotatableDie.Models.DieTypes
         {
         }
         
-        public override void CreateGeometry(Model3DGroup modelGroup, Color color)
+        public override void CreateGeometry(Model3DGroup modelGroup, Color color, bool wireframeMode = false)
         {
             double phi = (1 + Math.Sqrt(5)) / 2; // Golden ratio
             double scale = 0.4; // Scale to match other dice sizes
@@ -76,6 +76,22 @@ namespace RotatableDie.Models.DieTypes
                 new int[] { 5, 15, 7, 19, 17 },    // Face 10
                 new int[] { 6, 11, 7, 15, 14 }     // Face 11
             };
+
+            if (wireframeMode)
+            {
+                // Create wireframe edges for each face
+                foreach (int[] face in faces)
+                {
+                    for (int i = 0; i < face.Length; i++)
+                    {
+                        // Connect each vertex to the next one (loop back to first for the last one)
+                        int nextIdx = (i + 1) % face.Length;
+                        AddWireframeEdge(modelGroup, vertices[face[i]], vertices[face[nextIdx]], color);
+                    }
+                }
+                
+                return;
+            }
             
             // First, examine which face corresponds to which number based on edges shared
             int[] faceNumbers = new int[12];
@@ -108,6 +124,79 @@ namespace RotatableDie.Models.DieTypes
             {
                 GeometryHelper.CreatePentagonFace(modelGroup, vertices.ToArray(), faces[i], numberTextures[i]);
             }
+        }
+        
+        private void AddWireframeEdge(Model3DGroup modelGroup, Point3D point1, Point3D point2, Color color)
+        {
+            // Create a thin tube between the two points to represent an edge
+            double thickness = 0.008; // Thinner lines for dodecahedron due to many edges
+            Vector3D direction = point2 - point1;
+            double length = direction.Length;
+            direction.Normalize();
+            
+            // Create a transform to rotate and position the cylinder for this edge
+            Transform3DGroup transformGroup = new Transform3DGroup();
+            
+            // Create a cylinder aligned with the Z-axis
+            MeshGeometry3D edgeMesh = new MeshGeometry3D();
+            
+            // Create a simple cylinder with 8 segments around the circumference
+            const int segments = 8;
+            for (int i = 0; i <= segments; i++)
+            {
+                double angle = i * 2 * Math.PI / segments;
+                double x = thickness * Math.Cos(angle);
+                double y = thickness * Math.Sin(angle);
+                
+                // Add vertices at both ends of the cylinder
+                edgeMesh.Positions.Add(new Point3D(x, y, 0));
+                edgeMesh.Positions.Add(new Point3D(x, y, length));
+            }
+            
+            // Create triangles for the cylinder
+            for (int i = 0; i < segments; i++)
+            {
+                int baseIndex = i * 2;
+                
+                // Create two triangles for this segment
+                edgeMesh.TriangleIndices.Add(baseIndex);
+                edgeMesh.TriangleIndices.Add(baseIndex + 1);
+                edgeMesh.TriangleIndices.Add(baseIndex + 2);
+                
+                edgeMesh.TriangleIndices.Add(baseIndex + 1);
+                edgeMesh.TriangleIndices.Add(baseIndex + 3);
+                edgeMesh.TriangleIndices.Add(baseIndex + 2);
+            }
+            
+            // Create transform to align the edge with the specified points
+            Vector3D zaxis = new Vector3D(0, 0, 1);
+            Quaternion rotation = new Quaternion();
+            
+            if (Math.Abs(Vector3D.DotProduct(direction, zaxis)) < 0.99999)
+            {
+                Vector3D rotationAxis = Vector3D.CrossProduct(zaxis, direction);
+                rotationAxis.Normalize();
+                double rotationAngle = Math.Acos(Vector3D.DotProduct(zaxis, direction));
+                rotation = new Quaternion(rotationAxis, rotationAngle * 180 / Math.PI);
+            }
+            
+            RotateTransform3D rotateTransform = new RotateTransform3D(new QuaternionRotation3D(rotation));
+            transformGroup.Children.Add(rotateTransform);
+            
+            // Add translation to position the edge at the start point
+            transformGroup.Children.Add(new TranslateTransform3D(point1.X, point1.Y, point1.Z));
+            
+            // Create material for the edge (using black color for visibility)
+            Material edgeMaterial = new DiffuseMaterial(new SolidColorBrush(Colors.Black));
+            
+            // Create the model and add it to the group
+            GeometryModel3D model = new GeometryModel3D();
+            model.Geometry = edgeMesh;
+            model.Material = edgeMaterial;
+            model.BackMaterial = edgeMaterial;
+            model.Transform = transformGroup;
+            
+            modelGroup.Children.Add(model);
         }
     }
 }

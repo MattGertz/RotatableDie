@@ -13,7 +13,7 @@ namespace RotatableDie.Models.DieTypes
         {
         }
         
-        public override void CreateGeometry(Model3DGroup modelGroup, Color color)
+        public override void CreateGeometry(Model3DGroup modelGroup, Color color, bool wireframeMode = false)
         {
             // Icosahedron has 20 equilateral triangular faces
             double phi = (1 + Math.Sqrt(5)) / 2; // Golden ratio
@@ -65,6 +65,34 @@ namespace RotatableDie.Models.DieTypes
                 new int[] { 11, 3, 7 }    // Face 19
             };
             
+            if (wireframeMode)
+            {
+                // For wireframe mode, we'll create edges for each triangle face
+                // We'll use a HashSet to avoid duplicating edges
+                HashSet<string> edges = new HashSet<string>();
+                
+                foreach (int[] face in faceIndices)
+                {
+                    for (int i = 0; i < 3; i++)
+                    {
+                        int v1 = face[i];
+                        int v2 = face[(i + 1) % 3];
+                        
+                        // Create a unique key for this edge (smaller index first)
+                        string edgeKey = v1 < v2 ? $"{v1}-{v2}" : $"{v2}-{v1}";
+                        
+                        // Only add the edge if we haven't already
+                        if (!edges.Contains(edgeKey))
+                        {
+                            edges.Add(edgeKey);
+                            AddWireframeEdge(modelGroup, vertices[v1], vertices[v2], color);
+                        }
+                    }
+                }
+                
+                return;
+            }
+            
             // Create textures for each face
             BitmapImage[] textures = new BitmapImage[20];
             
@@ -111,6 +139,79 @@ namespace RotatableDie.Models.DieTypes
                 int[] reversedIndices = new int[] { faceIndices[i][0], faceIndices[i][2], faceIndices[i][1] };
                 GeometryHelper.CreateTriangleFace(modelGroup, vertices, reversedIndices, textures[i]);
             }
+        }
+        
+        private void AddWireframeEdge(Model3DGroup modelGroup, Point3D point1, Point3D point2, Color color)
+        {
+            // Create a thin tube between the two points to represent an edge
+            double thickness = 0.008; // Thinner lines for icosahedron due to many edges
+            Vector3D direction = point2 - point1;
+            double length = direction.Length;
+            direction.Normalize();
+            
+            // Create a transform to rotate and position the cylinder for this edge
+            Transform3DGroup transformGroup = new Transform3DGroup();
+            
+            // Create a cylinder aligned with the Z-axis
+            MeshGeometry3D edgeMesh = new MeshGeometry3D();
+            
+            // Create a simple cylinder with 8 segments around the circumference
+            const int segments = 8;
+            for (int i = 0; i <= segments; i++)
+            {
+                double angle = i * 2 * Math.PI / segments;
+                double x = thickness * Math.Cos(angle);
+                double y = thickness * Math.Sin(angle);
+                
+                // Add vertices at both ends of the cylinder
+                edgeMesh.Positions.Add(new Point3D(x, y, 0));
+                edgeMesh.Positions.Add(new Point3D(x, y, length));
+            }
+            
+            // Create triangles for the cylinder
+            for (int i = 0; i < segments; i++)
+            {
+                int baseIndex = i * 2;
+                
+                // Create two triangles for this segment
+                edgeMesh.TriangleIndices.Add(baseIndex);
+                edgeMesh.TriangleIndices.Add(baseIndex + 1);
+                edgeMesh.TriangleIndices.Add(baseIndex + 2);
+                
+                edgeMesh.TriangleIndices.Add(baseIndex + 1);
+                edgeMesh.TriangleIndices.Add(baseIndex + 3);
+                edgeMesh.TriangleIndices.Add(baseIndex + 2);
+            }
+            
+            // Create transform to align the edge with the specified points
+            Vector3D zaxis = new Vector3D(0, 0, 1);
+            Quaternion rotation = new Quaternion();
+            
+            if (Math.Abs(Vector3D.DotProduct(direction, zaxis)) < 0.99999)
+            {
+                Vector3D rotationAxis = Vector3D.CrossProduct(zaxis, direction);
+                rotationAxis.Normalize();
+                double rotationAngle = Math.Acos(Vector3D.DotProduct(zaxis, direction));
+                rotation = new Quaternion(rotationAxis, rotationAngle * 180 / Math.PI);
+            }
+            
+            RotateTransform3D rotateTransform = new RotateTransform3D(new QuaternionRotation3D(rotation));
+            transformGroup.Children.Add(rotateTransform);
+            
+            // Add translation to position the edge at the start point
+            transformGroup.Children.Add(new TranslateTransform3D(point1.X, point1.Y, point1.Z));
+            
+            // Create material for the edge (using black color for visibility)
+            Material edgeMaterial = new DiffuseMaterial(new SolidColorBrush(Colors.Black));
+            
+            // Create the model and add it to the group
+            GeometryModel3D model = new GeometryModel3D();
+            model.Geometry = edgeMesh;
+            model.Material = edgeMaterial;
+            model.BackMaterial = edgeMaterial;
+            model.Transform = transformGroup;
+            
+            modelGroup.Children.Add(model);
         }
     }
 }

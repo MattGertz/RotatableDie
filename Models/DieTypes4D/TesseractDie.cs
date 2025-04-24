@@ -134,10 +134,22 @@ namespace RotatableDie.Models.DieTypes4D
             }
         }
         
+        public override void CreateGeometry(Model3DGroup modelGroup, Color color, bool wireframeMode = false)
+        {
+            // Apply 4D rotation
+            Apply4DRotation();
+            
+            // Project the 4D vertices to 3D space
+            ProjectTo3D();
+            
+            // Render the projected 3D geometry with wireframe mode
+            RenderProjectedGeometry(modelGroup, color, wireframeMode);
+        }
+        
         /// <summary>
         /// Render the projected 3D geometry
         /// </summary>
-        protected override void RenderProjectedGeometry(Model3DGroup modelGroup, Color color)
+        protected override void RenderProjectedGeometry(Model3DGroup modelGroup, Color color, bool wireframeMode)
         {
             // Calculate cell visibility based on the current 4D rotation
             CalculateCellVisibility();
@@ -147,6 +159,12 @@ namespace RotatableDie.Models.DieTypes4D
             
             // Sort cells by visibility for proper rendering order (most visible first)
             cells.Sort((a, b) => b.Visibility.CompareTo(a.Visibility));
+            
+            if (wireframeMode)
+            {
+                RenderWireframe(modelGroup, originalColor);
+                return;
+            }
             
             // Render each cell
             foreach (var cell in cells)
@@ -158,6 +176,180 @@ namespace RotatableDie.Models.DieTypes4D
                     RenderCubicCell(modelGroup, cell, originalColor);
                 }
             }
+        }
+        
+        /// <summary>
+        /// Render the tesseract in wireframe mode
+        /// </summary>
+        private void RenderWireframe(Model3DGroup modelGroup, Color color)
+        {
+            // Define all edges in the tesseract
+            HashSet<string> renderedEdges = new HashSet<string>();
+            
+            // 1. First add the edges of each cubic cell
+            foreach (var cell in cells)
+            {
+                // Only render cells with some visibility
+                if (cell.Visibility > 0.05)
+                {
+                    // Define the edges of a cube (pairs of vertex indices)
+                    int[][] cubeEdges = new int[][]
+                    {
+                        new int[] { 0, 1 }, new int[] { 1, 3 }, new int[] { 3, 2 }, new int[] { 2, 0 }, // Front face
+                        new int[] { 4, 5 }, new int[] { 5, 7 }, new int[] { 7, 6 }, new int[] { 6, 4 }, // Back face
+                        new int[] { 0, 4 }, new int[] { 1, 5 }, new int[] { 2, 6 }, new int[] { 3, 7 }  // Connecting edges
+                    };
+                    
+                    // Add each edge
+                    foreach (int[] edge in cubeEdges)
+                    {
+                        // Get the two vertex positions
+                        int vertex1Index = cell.VertexIndices[edge[0]];
+                        int vertex2Index = cell.VertexIndices[edge[1]];
+                        
+                        // Create a unique key for this edge (smaller index first)
+                        string edgeKey = vertex1Index < vertex2Index ? 
+                            $"{vertex1Index}-{vertex2Index}" : $"{vertex2Index}-{vertex1Index}";
+                        
+                        // Only add the edge if we haven't already
+                        if (!renderedEdges.Contains(edgeKey))
+                        {
+                            renderedEdges.Add(edgeKey);
+                            
+                            // Adjust edge opacity based on cell visibility
+                            double opacity = Math.Min(1.0, Math.Max(0.1, cell.Visibility));
+                            
+                            // Add the wireframe edge
+                            AddWireframeEdge(modelGroup, 
+                                projectedVertices[vertex1Index], 
+                                projectedVertices[vertex2Index], 
+                                color,
+                                opacity);
+                        }
+                    }
+                }
+            }
+        }
+        
+        /// <summary>
+        /// Add a wireframe edge between two points
+        /// </summary>
+        private void AddWireframeEdge(Model3DGroup modelGroup, Point3D point1, Point3D point2, Color color, double opacity = 1.0)
+        {
+            // Create a simple line segment between the two points
+            double thickness = 0.01; // Thickness of the wireframe edges
+            
+            // Create a line segment mesh (two triangles forming a thin rectangle)
+            MeshGeometry3D lineMesh = new MeshGeometry3D();
+            
+            // Calculate a perpendicular vector for giving the line some thickness
+            // We need two perpendicular vectors to create a 3D line with thickness
+            Vector3D lineDir = point2 - point1;
+            lineDir.Normalize();
+            
+            // Find two perpendicular vectors to the line direction
+            Vector3D perpVec1, perpVec2;
+            
+            // Choose a reference vector that's unlikely to be parallel to lineDir
+            Vector3D refVector = Math.Abs(lineDir.Z) > 0.9 ? new Vector3D(1, 0, 0) : new Vector3D(0, 0, 1);
+            
+            // Create two perpendicular vectors to form the "thickness" of the line
+            perpVec1 = Vector3D.CrossProduct(lineDir, refVector);
+            perpVec1.Normalize();
+            perpVec1 *= thickness;
+            
+            perpVec2 = Vector3D.CrossProduct(lineDir, perpVec1);
+            perpVec2.Normalize();
+            perpVec2 *= thickness;
+            
+            // Create the vertices of the line segment (as a thin 3D tube with 4 sides)
+            Point3D[] vertices = new Point3D[8];
+            
+            // Starting point vertices (form a small square around the starting point)
+            vertices[0] = point1 + perpVec1 + perpVec2;
+            vertices[1] = point1 + perpVec1 - perpVec2;
+            vertices[2] = point1 - perpVec1 - perpVec2;
+            vertices[3] = point1 - perpVec1 + perpVec2;
+            
+            // Ending point vertices (form a small square around the ending point)
+            vertices[4] = point2 + perpVec1 + perpVec2;
+            vertices[5] = point2 + perpVec1 - perpVec2;
+            vertices[6] = point2 - perpVec1 - perpVec2;
+            vertices[7] = point2 - perpVec1 + perpVec2;
+            
+            // Add all vertices to the mesh
+            foreach (Point3D vertex in vertices)
+            {
+                lineMesh.Positions.Add(vertex);
+            }
+            
+            // Create the faces of the 3D line (triangles)
+            // Side 1
+            lineMesh.TriangleIndices.Add(0);
+            lineMesh.TriangleIndices.Add(1);
+            lineMesh.TriangleIndices.Add(5);
+            
+            lineMesh.TriangleIndices.Add(0);
+            lineMesh.TriangleIndices.Add(5);
+            lineMesh.TriangleIndices.Add(4);
+            
+            // Side 2
+            lineMesh.TriangleIndices.Add(1);
+            lineMesh.TriangleIndices.Add(2);
+            lineMesh.TriangleIndices.Add(6);
+            
+            lineMesh.TriangleIndices.Add(1);
+            lineMesh.TriangleIndices.Add(6);
+            lineMesh.TriangleIndices.Add(5);
+            
+            // Side 3
+            lineMesh.TriangleIndices.Add(2);
+            lineMesh.TriangleIndices.Add(3);
+            lineMesh.TriangleIndices.Add(7);
+            
+            lineMesh.TriangleIndices.Add(2);
+            lineMesh.TriangleIndices.Add(7);
+            lineMesh.TriangleIndices.Add(6);
+            
+            // Side 4
+            lineMesh.TriangleIndices.Add(3);
+            lineMesh.TriangleIndices.Add(0);
+            lineMesh.TriangleIndices.Add(4);
+            
+            lineMesh.TriangleIndices.Add(3);
+            lineMesh.TriangleIndices.Add(4);
+            lineMesh.TriangleIndices.Add(7);
+            
+            // Optional: Add end caps if desired
+            // End cap 1
+            lineMesh.TriangleIndices.Add(0);
+            lineMesh.TriangleIndices.Add(3);
+            lineMesh.TriangleIndices.Add(2);
+            
+            lineMesh.TriangleIndices.Add(0);
+            lineMesh.TriangleIndices.Add(2);
+            lineMesh.TriangleIndices.Add(1);
+            
+            // End cap 2
+            lineMesh.TriangleIndices.Add(4);
+            lineMesh.TriangleIndices.Add(5);
+            lineMesh.TriangleIndices.Add(6);
+            
+            lineMesh.TriangleIndices.Add(4);
+            lineMesh.TriangleIndices.Add(6);
+            lineMesh.TriangleIndices.Add(7);
+            
+            // Create material for the edge with proper transparency
+            Color edgeColor = Color.FromArgb((byte)(255 * opacity), color.R, color.G, color.B);
+            Material edgeMaterial = new DiffuseMaterial(new SolidColorBrush(edgeColor));
+            
+            // Create the 3D model and add it to the group
+            GeometryModel3D lineModel = new GeometryModel3D();
+            lineModel.Geometry = lineMesh;
+            lineModel.Material = edgeMaterial;
+            lineModel.BackMaterial = edgeMaterial;
+            
+            modelGroup.Children.Add(lineModel);
         }
         
         /// <summary>

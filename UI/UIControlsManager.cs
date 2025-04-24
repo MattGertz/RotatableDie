@@ -21,6 +21,7 @@ namespace RotatableDie.UI
         
         public event EventHandler<DieTypeChangedEventArgs>? DieTypeChanged;
         public event EventHandler<ColorChangedEventArgs>? ColorChanged;
+        public event EventHandler<WireframeModeChangedEventArgs>? WireframeModeChanged;
         
         public UIControlsManager(Window window, TextBlock instructionsBlock)
         {
@@ -33,9 +34,10 @@ namespace RotatableDie.UI
             // Get or create the control panel first
             StackPanel controlPanel = GetOrCreateControlPanel();
             
-            // Add both combo boxes to the control panel
+            // Add all controls to the control panel
             AddDieTypeComboBox(controlPanel);
             AddColorComboBox(controlPanel);
+            AddWireframeCheckbox(controlPanel);
             
             // Populate the color combo box with color options
             PopulateColorComboBox();
@@ -219,6 +221,45 @@ namespace RotatableDie.UI
         }
 
         /// <summary>
+        /// Adds the wireframe checkbox to the control panel
+        /// </summary>
+        private void AddWireframeCheckbox(StackPanel controlPanel)
+        {
+            // Create a separator for visual spacing
+            Separator separator = new Separator
+            {
+                Width = 10,
+                Opacity = 0
+            };
+            
+            // Create the wireframe checkbox
+            CheckBox wireframeCheckbox = new CheckBox
+            {
+                Content = "Wireframe Mode",
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(5, 0, 0, 0),
+                Name = "wireframeCheckbox"
+            };
+            
+            // Register event handler
+            wireframeCheckbox.Checked += WireframeCheckbox_CheckedChanged;
+            wireframeCheckbox.Unchecked += WireframeCheckbox_CheckedChanged;
+            
+            // Add controls to panel
+            controlPanel.Children.Add(separator);
+            controlPanel.Children.Add(wireframeCheckbox);
+        }
+
+        private void WireframeCheckbox_CheckedChanged(object sender, RoutedEventArgs e)
+        {
+            if (sender is CheckBox checkBox)
+            {
+                bool isWireframeMode = checkBox.IsChecked ?? false;
+                WireframeModeChanged?.Invoke(this, new WireframeModeChangedEventArgs(isWireframeMode));
+            }
+        }
+
+        /// <summary>
         /// Updates the rotation instructions based on the current die type
         /// </summary>
         private void UpdateRotationInstructions(DieType dieType)
@@ -251,6 +292,16 @@ namespace RotatableDie.UI
         public ColorChangedEventArgs(Color color)
         {
             Color = color;
+        }
+    }
+
+    public class WireframeModeChangedEventArgs : EventArgs
+    {
+        public bool IsWireframeMode { get; }
+        
+        public WireframeModeChangedEventArgs(bool isWireframeMode)
+        {
+            IsWireframeMode = isWireframeMode;
         }
     }
 }

@@ -37,6 +37,7 @@ namespace RotatableDie
             // Set up event handlers
             _controlsManager.ColorChanged += OnColorChanged;
             _controlsManager.DieTypeChanged += OnDieTypeChanged;
+            _controlsManager.WireframeModeChanged += OnWireframeModeChanged;
 
             // Set up controls and create initial die
             _controlsManager.SetupControls();
@@ -53,6 +54,11 @@ namespace RotatableDie
         {
             _currentDieType = e.DieType;
             _visualizer.CreateDie(_currentDieType, _currentDieColor);
+        }
+        
+        private void OnWireframeModeChanged(object? sender, WireframeModeChangedEventArgs e)
+        {
+            _visualizer.WireframeMode = e.IsWireframeMode;
         }
     }
 }
