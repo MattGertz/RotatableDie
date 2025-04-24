@@ -455,6 +455,32 @@ namespace RotatableDie.Models.DieTypes4D
                 // Create material with the texture - apply transparency here
                 ImageBrush textureBrush = new ImageBrush(texture);
                 
+                // Fix the mirrored text by applying a ScaleTransform based on face orientation
+                
+                // Calculate face center
+                Point3D faceCenter = new Point3D(
+                    (faceMesh.Positions[0].X + faceMesh.Positions[1].X + faceMesh.Positions[2].X) / 3,
+                    (faceMesh.Positions[0].Y + faceMesh.Positions[1].Y + faceMesh.Positions[2].Y) / 3,
+                    (faceMesh.Positions[0].Z + faceMesh.Positions[1].Z + faceMesh.Positions[2].Z) / 3
+                );
+                
+                // Calculate face normal vector
+                Vector3D edge1 = faceMesh.Positions[1] - faceMesh.Positions[0];
+                Vector3D edge2 = faceMesh.Positions[2] - faceMesh.Positions[0];
+                Vector3D normal = Vector3D.CrossProduct(edge1, edge2);
+                normal.Normalize();
+                
+                // Vector from origin to face center
+                Vector3D toCenter = new Vector3D(faceCenter.X, faceCenter.Y, faceCenter.Z);
+                toCenter.Normalize();
+                
+                // If the normal is pointing inward (dot product with direction to center is positive)
+                // We need to flip the texture horizontally for correct text orientation
+                if (Vector3D.DotProduct(normal, toCenter) > 0)
+                {
+                    textureBrush.RelativeTransform = new ScaleTransform(-1, 1, 0.5, 0.5);
+                }
+                
                 // Apply opacity through the brush instead of the material
                 textureBrush.Opacity = cell.Opacity;
                 Material faceMat = new DiffuseMaterial(textureBrush);

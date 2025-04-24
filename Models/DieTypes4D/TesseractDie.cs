@@ -470,7 +470,6 @@ namespace RotatableDie.Models.DieTypes4D
                 }
                 
                 // Create texture for this face using the specialized method
-                // Use original baseColor for texture (not the transparency-modified cellColor)
                 BitmapImage texture = TextureService.Create4DCellTexture(
                     cell.Number,         // Cell index for numbering system
                     faceIndex,           // Face number
@@ -480,6 +479,35 @@ namespace RotatableDie.Models.DieTypes4D
                 
                 // Create material with the texture - apply transparency here
                 ImageBrush textureBrush = new ImageBrush(texture);
+                
+                // Fix the mirrored text by applying a ScaleTransform
+                
+                // Detect face orientation - we need to calculate if a face is "inward" or "outward" facing
+                // by examining the face's normal vector relative to the center
+                
+                // Calculate face center
+                Point3D faceCenter = new Point3D(
+                    (faceMesh.Positions[0].X + faceMesh.Positions[1].X + faceMesh.Positions[2].X + faceMesh.Positions[3].X) / 4,
+                    (faceMesh.Positions[0].Y + faceMesh.Positions[1].Y + faceMesh.Positions[2].Y + faceMesh.Positions[3].Y) / 4,
+                    (faceMesh.Positions[0].Z + faceMesh.Positions[1].Z + faceMesh.Positions[2].Z + faceMesh.Positions[3].Z) / 4
+                );
+                
+                // Calculate face normal vector
+                Vector3D edge1 = faceMesh.Positions[1] - faceMesh.Positions[0];
+                Vector3D edge2 = faceMesh.Positions[3] - faceMesh.Positions[0];
+                Vector3D normal = Vector3D.CrossProduct(edge1, edge2);
+                normal.Normalize();
+                
+                // Vector from origin to face center
+                Vector3D toCenter = new Vector3D(faceCenter.X, faceCenter.Y, faceCenter.Z);
+                toCenter.Normalize();
+                
+                // If the normal is pointing inward (dot product with direction to center is positive)
+                // We need to flip the texture horizontally for correct text orientation
+                if (Vector3D.DotProduct(normal, toCenter) > 0)
+                {
+                    textureBrush.RelativeTransform = new ScaleTransform(-1, 1, 0.5, 0.5);
+                }
                 
                 // Apply opacity through the brush instead of the material
                 textureBrush.Opacity = cell.Opacity;
