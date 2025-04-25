@@ -27,12 +27,11 @@ namespace RotatableDie
         private DieType _currentDieType = DieType.Cube;
         
         // Random rotation fields
-        // Initialize in constructor instead of using 'required'
-        private readonly DispatcherTimer _randomRotationTimer;
-        private readonly DispatcherTimer _directionChangeTimer;
-        private Random _random = new Random();
+        private readonly DispatcherTimer _rotationDirectionTimer;  // Timer to change rotation direction
+        private readonly Random _random = new Random();
         private int _directionDuration = 10; // Default to 10 seconds
-        private int _secondsElapsed = 0;
+        private int _ticks = 0;              // Count ticks of the current direction
+        private int _ticksPerDirection = 10; // How many ticks before direction change
         private int _rotationStepX = 0;
         private int _rotationStepY = 0;
         private int _rotationStepZ = 0;
@@ -50,18 +49,9 @@ namespace RotatableDie
             _controlsManager = new UIControlsManager(this, instructionsTextBlock);
             _visualizer = new DieVisualizer(viewport, _dieFactory);
 
-            // Initialize timers for random rotation
-            _randomRotationTimer = new DispatcherTimer
-            {
-                Interval = TimeSpan.FromMilliseconds(100) // Update 10 times per second for smooth rotation
-            };
-            _randomRotationTimer.Tick += RandomRotationTimer_Tick;
-            
-            _directionChangeTimer = new DispatcherTimer
-            {
-                Interval = TimeSpan.FromSeconds(1)
-            };
-            _directionChangeTimer.Tick += DirectionChangeTimer_Tick;
+            // Initialize timer for random rotation with a default rate (will be adjusted when started)
+            _rotationDirectionTimer = new DispatcherTimer();
+            _rotationDirectionTimer.Tick += RotationDirectionTimer_Tick;
 
             // Set up event handlers
             _controlsManager.ColorChanged += OnColorChanged;
@@ -77,40 +67,38 @@ namespace RotatableDie
             UpdateWRotationControlVisibility(_currentDieType);
         }
         
-        // Random rotation timer tick handler - rotates the die
-        // Fixing CS8622 warning by making the parameters nullable
-        private void RandomRotationTimer_Tick(object? sender, EventArgs e)
+        // Single unified rotation timer tick handler - rotates the die at varying intervals
+        // and changes direction after the full duration has elapsed
+        private void RotationDirectionTimer_Tick(object? sender, EventArgs e)
         {
-            // Apply rotation steps (dividing by 10 because we update 10 times per second)
-            double incrementX = _rotationStepX * 0.1;
-            double incrementY = _rotationStepY * 0.1;
-            double incrementZ = _rotationStepZ * 0.1;
+            // Apply the 3D rotation steps directly
+            _visualizer.ApplyRandomRotation(_rotationStepX, _rotationStepY, _rotationStepZ);
             
-            // Apply 3D rotation
-            _visualizer.ApplyRandomRotation(incrementX, incrementY, incrementZ);
-            
-            // Apply 4D rotation if the die is 4D
-            if (_currentDieType == DieType.Tesseract || 
-                _currentDieType == DieType.Pentachoron ||
-                _currentDieType == DieType.Hexadecachoron ||
-                _currentDieType == DieType.Octaplex)
+            // Apply 4D rotation if the die is 4D, with adjusted increment values
+            if (Is4DDie(_currentDieType))
             {
-                double incrementW = _rotationStepW * 0.1;
-                _visualizer.ApplyRandom4DRotation(incrementW);
+                // Adjust 4D rotation scale based on wireframe mode
+                if (_visualizer.WireframeMode)
+                {
+                    // For wireframe mode with 0.1 second updates, use a small increment
+                    _visualizer.ApplyRandom4DRotation(_rotationStepW * 0.2);
+                }
+                else 
+                {
+                    // For textured mode with 3 second updates, use a much smaller increment
+                    // to avoid large jumps in orientation - just 1 degree per update
+                    _visualizer.ApplyRandom4DRotation(_rotationStepW * 0.05);
+                }
             }
-        }
-        
-        // Direction change timer tick handler - counts seconds and changes direction
-        // Fixing CS8622 warning by making the parameters nullable
-        private void DirectionChangeTimer_Tick(object? sender, EventArgs e)
-        {
-            _secondsElapsed++;
             
-            // If we've reached the duration, change direction
-            if (_secondsElapsed >= _directionDuration)
+            // Increment tick counter
+            _ticks++;
+            
+            // If we've reached the target number of ticks for this direction, generate new random direction
+            if (_ticks >= _ticksPerDirection)
             {
                 GenerateRandomRotationSteps();
-                _secondsElapsed = 0;
+                _ticks = 0;
             }
         }
         
@@ -123,10 +111,7 @@ namespace RotatableDie
             _rotationStepZ = _random.Next(3) - 1; // -1, 0, or 1
             
             // Only set W rotation for 4D objects
-            if (_currentDieType == DieType.Tesseract || 
-                _currentDieType == DieType.Pentachoron ||
-                _currentDieType == DieType.Hexadecachoron ||
-                _currentDieType == DieType.Octaplex)
+            if (Is4DDie(_currentDieType))
             {
                 _rotationStepW = _random.Next(3) - 1; // -1, 0, or 1
             }
@@ -150,20 +135,53 @@ namespace RotatableDie
             _directionDuration = Math.Clamp(_directionDuration, 1, 60);
             DirectionDurationTextBox.Text = _directionDuration.ToString();
             
+            // Set rotation interval based on die type and wireframe mode
+            if (_visualizer.WireframeMode)
+            {
+                // Wireframe mode: 0.1 second update rate
+                _rotationDirectionTimer.Interval = TimeSpan.FromSeconds(0.1);
+                // Calculate how many ticks for the full duration
+                _ticksPerDirection = (int)Math.Ceiling(_directionDuration / 0.1);
+            }
+            else if (Is4DDie(_currentDieType))
+            {
+                // Textured 4D solid: 3 second update rate
+                _rotationDirectionTimer.Interval = TimeSpan.FromSeconds(3.0);
+                // Calculate how many ticks for the full duration
+                _ticksPerDirection = (int)Math.Ceiling(_directionDuration / 3.0);
+            }
+            else
+            {
+                // Textured 3D solid: 0.5 second update rate
+                _rotationDirectionTimer.Interval = TimeSpan.FromSeconds(0.5);
+                // Calculate how many ticks for the full duration
+                _ticksPerDirection = (int)Math.Ceiling(_directionDuration / 0.5);
+            }
+            
+            // Always ensure at least one tick per direction
+            _ticksPerDirection = Math.Max(1, _ticksPerDirection);
+            
             // Generate initial random rotation steps
             GenerateRandomRotationSteps();
-            _secondsElapsed = 0;
+            _ticks = 0;
             
-            // Start timers
-            _randomRotationTimer.Start();
-            _directionChangeTimer.Start();
+            // Start timer
+            _rotationDirectionTimer.Start();
         }
         
         // Stop random rotation
         private void StopRandomRotation()
         {
-            _randomRotationTimer.Stop();
-            _directionChangeTimer.Stop();
+            _rotationDirectionTimer.Stop();
+        }
+
+        // Helper method to check if a die type is 4D
+        private bool Is4DDie(DieType dieType)
+        {
+            return dieType == DieType.Tesseract || 
+                   dieType == DieType.Pentachoron ||
+                   dieType == DieType.Hexadecachoron ||
+                   dieType == DieType.Octaplex;
         }
 
         // Event handler for RandomRotationCheckBox checked/unchecked
@@ -219,6 +237,15 @@ namespace RotatableDie
                 if (RandomRotationCheckBox.IsChecked == true)
                 {
                     _directionDuration = int.Parse(DirectionDurationTextBox.Text);
+                    
+                    // Restart the rotation with the new duration
+                    StopRandomRotation();
+                    StartRandomRotation();
+                }
+                else
+                {
+                    // Just store the value for later use if rotation is activated
+                    _directionDuration = int.Parse(DirectionDurationTextBox.Text);
                 }
             }
             else
@@ -237,16 +264,46 @@ namespace RotatableDie
 
         private void OnDieTypeChanged(object? sender, DieTypeChangedEventArgs e)
         {
+            bool wasRotating = RandomRotationCheckBox.IsChecked == true;
+            
+            // If rotation was active, stop it temporarily
+            if (wasRotating)
+            {
+                StopRandomRotation();
+            }
+            
+            // Update the die type and create the new die
             _currentDieType = e.DieType;
             _visualizer.CreateDie(_currentDieType, _currentDieColor);
             
             // Update W rotation panel visibility based on new die type
             UpdateWRotationControlVisibility(_currentDieType);
+            
+            // If rotation was active, restart it with the appropriate timing
+            if (wasRotating)
+            {
+                StartRandomRotation();
+            }
         }
         
         private void OnWireframeModeChanged(object? sender, WireframeModeChangedEventArgs e)
         {
+            bool wasRotating = RandomRotationCheckBox.IsChecked == true;
+            
+            // If rotation was active, stop it temporarily
+            if (wasRotating)
+            {
+                StopRandomRotation();
+            }
+            
+            // Update wireframe mode
             _visualizer.WireframeMode = e.IsWireframeMode;
+            
+            // If rotation was active, restart it with the appropriate timing
+            if (wasRotating)
+            {
+                StartRandomRotation();
+            }
         }
         
         private void OnRotationChanged(object? sender, RotationChangedEventArgs e)
