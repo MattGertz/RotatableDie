@@ -11,6 +11,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
@@ -20,8 +21,20 @@
             <!-- Die type and color controls will be added here -->
         </StackPanel>
         
+        <!-- Random rotation controls -->
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="10,5,10,5">
+            <CheckBox x:Name="RandomRotationCheckBox" Content="Random rotation" VerticalAlignment="Center" 
+                      Unchecked="RandomRotationCheckBox_CheckedChanged" 
+                      Checked="RandomRotationCheckBox_CheckedChanged"/>
+            <TextBlock Text="Direction duration:" Margin="20,0,5,0" VerticalAlignment="Center"/>
+            <TextBox x:Name="DirectionDurationTextBox" Width="40" Text="10" VerticalAlignment="Center"
+                     PreviewTextInput="DirectionDurationTextBox_PreviewTextInput"
+                     TextChanged="DirectionDurationTextBox_TextChanged"/>
+            <TextBlock Text="seconds" Margin="5,0,0,0" VerticalAlignment="Center"/>
+        </StackPanel>
+        
         <!-- Instructions for rotation controls -->
-        <Border Grid.Row="1" Background="#F0F0F0" BorderBrush="#DDDDDD" BorderThickness="0,1,0,1" Padding="10,5">
+        <Border Grid.Row="2" Background="#F0F0F0" BorderBrush="#DDDDDD" BorderThickness="0,1,0,1" Padding="10,5">
             <TextBlock x:Name="instructionsTextBlock" TextAlignment="Center" FontSize="12">
                 <Run FontWeight="SemiBold">Rotation Controls:</Run>
                 <Run>Left-click + drag to rotate die • Right-click + drag for z-axis spin</Run>
@@ -29,7 +42,7 @@
         </Border>
         
         <!-- Viewport for displaying the 3D die -->
-        <Viewport3D x:Name="viewport" Grid.Row="2">
+        <Viewport3D x:Name="viewport" Grid.Row="3">
             <Viewport3D.Camera>
                 <PerspectiveCamera Position="0,0,3" LookDirection="0,0,-1" UpDirection="0,1,0" FieldOfView="60"/>
             </Viewport3D.Camera>
@@ -51,7 +64,7 @@
         </Viewport3D>
         
         <!-- Rotation tracking panel -->
-        <Border Grid.Row="3" Background="#F0F0F0" BorderBrush="#DDDDDD" BorderThickness="0,1,0,0" Padding="10,5">
+        <Border Grid.Row="4" Background="#F0F0F0" BorderBrush="#DDDDDD" BorderThickness="0,1,0,0" Padding="10,5">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>

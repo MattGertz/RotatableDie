@@ -18,6 +18,9 @@ namespace RotatableDie.Models.DieTypes4D
         public double RotationYW { get; set; } = 0; // Rotation in the Y-W plane
         public double RotationZW { get; set; } = 0; // Rotation in the Z-W plane
         
+        // Track main W rotation direction
+        protected double _wRotationSign = 1.0;
+        
         /// <summary>
         /// Gets the combined W rotation angle in degrees (for display purposes)
         /// </summary>
@@ -25,14 +28,14 @@ namespace RotatableDie.Models.DieTypes4D
         {
             get
             {
-                // We'll use a simple magnitude of the three rotation components as an indicator of total W rotation
-                double magnitude = Math.Sqrt(
-                    Math.Pow(RotationXW, 2) + 
-                    Math.Pow(RotationYW, 2) + 
-                    Math.Pow(RotationZW, 2));
+                // Calculate average of the three 4D rotation components
+                // This gives us a more consistent W rotation angle that respects the sign
+                // and maintains the -180° to +180° range
+                double sum = RotationXW + RotationYW + RotationZW;
+                double average = sum / 3.0;
                 
-                // Convert from radians to degrees for display
-                return magnitude * (180 / Math.PI);
+                // Convert from radians to degrees
+                return average * (180.0 / Math.PI);
             }
         }
         
@@ -104,9 +107,25 @@ namespace RotatableDie.Models.DieTypes4D
         /// </summary>
         public virtual void Rotate4D(double deltaXW, double deltaYW, double deltaZW)
         {
+            // Update rotation values
             RotationXW += deltaXW;
             RotationYW += deltaYW;
             RotationZW += deltaZW;
+            
+            // Normalize all angles to keep them within the -π to +π range (-180° to +180°)
+            // This prevents the angles from growing too large over time
+            const double PI = Math.PI;
+            const double TwoPI = 2 * Math.PI;
+            
+            // First, get the angle into the range of 0 to 2π
+            RotationXW = ((RotationXW % TwoPI) + TwoPI) % TwoPI;
+            RotationYW = ((RotationYW % TwoPI) + TwoPI) % TwoPI;
+            RotationZW = ((RotationZW % TwoPI) + TwoPI) % TwoPI;
+            
+            // Then convert from 0-2π to -π to +π
+            if (RotationXW > PI) RotationXW -= TwoPI;
+            if (RotationYW > PI) RotationYW -= TwoPI;
+            if (RotationZW > PI) RotationZW -= TwoPI;
         }
         
         /// <summary>

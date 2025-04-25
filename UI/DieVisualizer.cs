@@ -559,6 +559,7 @@ namespace RotatableDie.UI
             if (_currentDie is Die4D die4D)
             {
                 // Convert wheel delta to a small rotation angle (wheel delta comes in multiples of 120)
+                // Important: Preserve the sign to allow both positive and negative rotations
                 double rotationDelta = e.Delta / 1200.0;
                 
                 // Apply rotation based on modifier keys
@@ -578,6 +579,9 @@ namespace RotatableDie.UI
                     die4D.Rotate4D(0, 0, rotationDelta);
                 }
                 
+                // Normalize 4D rotation angles to keep within -π to +π range
+                NormalizeRotation4D(die4D);
+                
                 // Update the geometry with the new rotation
                 Model3DGroup dieModelGroup = new Model3DGroup();
                 
@@ -595,9 +599,27 @@ namespace RotatableDie.UI
                 
                 e.Handled = true;
                 
-                // Report 4D rotation change to update the W label
+                // Report rotation change to update the W label
                 ReportRotationChange();
             }
+        }
+
+        // Helper method to keep 4D rotation angles within a consistent range
+        private void NormalizeRotation4D(Die4D die4D)
+        {
+            const double TwoPi = Math.PI * 2;
+            
+            // Normalize XW rotation
+            while (die4D.RotationXW > Math.PI) die4D.RotationXW -= TwoPi;
+            while (die4D.RotationXW < -Math.PI) die4D.RotationXW += TwoPi;
+            
+            // Normalize YW rotation
+            while (die4D.RotationYW > Math.PI) die4D.RotationYW -= TwoPi;
+            while (die4D.RotationYW < -Math.PI) die4D.RotationYW += TwoPi;
+            
+            // Normalize ZW rotation
+            while (die4D.RotationZW > Math.PI) die4D.RotationZW -= TwoPi;
+            while (die4D.RotationZW < -Math.PI) die4D.RotationZW += TwoPi;
         }
         
         // Helper method to extract the current die color
@@ -658,6 +680,85 @@ namespace RotatableDie.UI
 
                 // Raise the event
                 RotationChanged?.Invoke(this, new RotationChangedEventArgs(_rotationAngleX, _rotationAngleY, _rotationAngleZ, _currentDie));
+            }
+        }
+
+        /// <summary>
+        /// Applies random rotation increments to the die in 3D space
+        /// </summary>
+        /// <param name="incrementX">X-axis rotation increment in degrees</param>
+        /// <param name="incrementY">Y-axis rotation increment in degrees</param>
+        /// <param name="incrementZ">Z-axis rotation increment in degrees</param>
+        public void ApplyRandomRotation(double incrementX, double incrementY, double incrementZ)
+        {
+            // Skip if there's no die to rotate
+            if (_dieVisual.Content == null)
+                return;
+            
+            // Get the current rotation as a quaternion
+            QuaternionRotation3D? currentRotation = _viewSpaceRotation.Rotation as QuaternionRotation3D;
+            if (currentRotation == null)
+            {
+                // First time initialization or fallback
+                currentRotation = new QuaternionRotation3D(new Quaternion());
+            }
+            
+            // Define rotation axes in view space
+            Vector3D xAxis = new Vector3D(1, 0, 0);
+            Vector3D yAxis = new Vector3D(0, 1, 0);
+            Vector3D zAxis = new Vector3D(0, 0, 1);
+            
+            // Track angles for UI
+            _rotationAngleX += incrementX;
+            _rotationAngleY += incrementY;
+            _rotationAngleZ += incrementZ;
+            
+            // Convert rotation angles to quaternions (in radians)
+            Quaternion rotX = new Quaternion(xAxis, incrementX);
+            Quaternion rotY = new Quaternion(yAxis, incrementY);
+            Quaternion rotZ = new Quaternion(zAxis, incrementZ);
+            
+            // Combine rotations: X, then Y, then Z
+            Quaternion combinedRotation = Quaternion.Multiply(rotZ, Quaternion.Multiply(rotY, rotX));
+            
+            // Apply to current rotation
+            Quaternion newRotation = Quaternion.Multiply(combinedRotation, currentRotation.Quaternion);
+            
+            // Update the model's rotation
+            _viewSpaceRotation.Rotation = new QuaternionRotation3D(newRotation);
+            
+            // Report rotation change
+            ReportRotationChange();
+        }
+        
+        /// <summary>
+        /// Applies random 4D rotation to the die
+        /// </summary>
+        /// <param name="incrementW">W-axis rotation increment in degrees</param>
+        public void ApplyRandom4DRotation(double incrementW)
+        {
+            if (_currentDie is Die4D die4D)
+            {
+                // Apply 4D rotation increment
+                die4D.Rotate4D(incrementW, incrementW, incrementW);
+                
+                // Update the geometry with the new 4D rotation
+                Model3DGroup dieModelGroup = new Model3DGroup();
+                
+                // Extract the current color
+                Color dieColor = GetCurrentDieColor();
+                
+                // Recreate geometry with updated 4D rotation
+                die4D.CreateGeometry(dieModelGroup, dieColor, _wireframeMode);
+                
+                // Apply the existing 3D transform
+                dieModelGroup.Transform = _dieTransform;
+                
+                // Update the visual
+                _dieVisual.Content = dieModelGroup;
+                
+                // Report rotation change to update the UI labels
+                ReportRotationChange();
             }
         }
     }
