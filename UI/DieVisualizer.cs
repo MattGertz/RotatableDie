@@ -13,6 +13,25 @@ using RotatableDie.Models.DieTypes4D;
 namespace RotatableDie.UI
 {
     /// <summary>
+    /// Event arguments for rotation changes
+    /// </summary>
+    public class RotationChangedEventArgs : EventArgs
+    {
+        public double AngleX { get; }
+        public double AngleY { get; }
+        public double AngleZ { get; }
+        public Die Die { get; }
+
+        public RotationChangedEventArgs(double angleX, double angleY, double angleZ, Die die)
+        {
+            AngleX = angleX;
+            AngleY = angleY;
+            AngleZ = angleZ;
+            Die = die;
+        }
+    }
+
+    /// <summary>
     /// Handles visualization and interaction with the 3D die
     /// </summary>
     public class DieVisualizer
@@ -32,6 +51,15 @@ namespace RotatableDie.UI
         private double _rotationAngleY = 0;
         private double _rotationAngleZ = 0;
         
+        // Track last reported values to avoid too-frequent updates
+        private double _lastReportedX = 0;
+        private double _lastReportedY = 0;
+        private double _lastReportedZ = 0;
+        private double _lastReportedW = 0; // Add tracking for W-axis rotation
+        
+        // Minimum change in degrees before reporting rotation change
+        private const double MIN_ROTATION_CHANGE = 1.0;
+        
         private ModelVisual3D _dieVisual;
         
         // Threshold for determining movement direction
@@ -45,6 +73,9 @@ namespace RotatableDie.UI
         
         // Wireframe mode support
         private bool _wireframeMode = false;
+        
+        // Event for notifying of rotation changes
+        public event EventHandler<RotationChangedEventArgs> RotationChanged = delegate { };
         
         private enum MovementIntent
         {
@@ -431,26 +462,32 @@ namespace RotatableDie.UI
                         double deltaXW = -deltaY * ROTATION_SCALE; // Invert Y for more intuitive control
                         double deltaYW = deltaX * ROTATION_SCALE;
                         die4D.Rotate4D(deltaXW, deltaYW, 0);
-                        
-                        // Update the geometry with the new 4D rotation
-                        Model3DGroup dieModelGroup = new Model3DGroup();
-                        
-                        // Extract the current color using our helper method
-                        Color dieColor = GetCurrentDieColor();
-                        
-                        // Recreate geometry with updated 4D rotation - include wireframe mode!
-                        die4D.CreateGeometry(dieModelGroup, dieColor, _wireframeMode);
-                        
-                        // Apply the existing 3D transform
-                        dieModelGroup.Transform = _dieTransform;
-                        
-                        // Update the visual
-                        _dieVisual.Content = dieModelGroup;
                     }
+                        
+                    // Update the geometry with the new 4D rotation
+                    Model3DGroup dieModelGroup = new Model3DGroup();
+                    
+                    // Extract the current color using our helper method
+                    Color dieColor = GetCurrentDieColor();
+                    
+                    // Recreate geometry with updated 4D rotation - include wireframe mode!
+                    die4D.CreateGeometry(dieModelGroup, dieColor, _wireframeMode);
+                    
+                    // Apply the existing 3D transform
+                    dieModelGroup.Transform = _dieTransform;
+                    
+                    // Update the visual
+                    _dieVisual.Content = dieModelGroup;
+                    
+                    // Report 4D rotation change to update the W label
+                    ReportRotationChange();
                 }
                 
                 // Save the current position for the next move event
                 _lastMousePosition = currentMousePosition;
+
+                // Report rotation change if significant
+                ReportRotationChange();
             }
         }
         
@@ -557,6 +594,9 @@ namespace RotatableDie.UI
                 _dieVisual.Content = dieModelGroup;
                 
                 e.Handled = true;
+                
+                // Report 4D rotation change to update the W label
+                ReportRotationChange();
             }
         }
         
@@ -584,6 +624,41 @@ namespace RotatableDie.UI
             }
             
             return defaultColor;
+        }
+
+        private void ReportRotationChange()
+        {
+            // For 4D dice, check W rotation changes
+            double currentW = 0;
+            bool is4DDie = false;
+            
+            // Check if we have a 4D die and get its W rotation
+            if (_currentDie is Die4D die4D)
+            {
+                is4DDie = true;
+                currentW = die4D.RotationWAngle;
+            }
+            
+            // Check if the change is significant enough to report
+            if (Math.Abs(_rotationAngleX - _lastReportedX) >= MIN_ROTATION_CHANGE ||
+                Math.Abs(_rotationAngleY - _lastReportedY) >= MIN_ROTATION_CHANGE ||
+                Math.Abs(_rotationAngleZ - _lastReportedZ) >= MIN_ROTATION_CHANGE ||
+                (is4DDie && Math.Abs(currentW - _lastReportedW) >= MIN_ROTATION_CHANGE))
+            {
+                // Update last reported values
+                _lastReportedX = _rotationAngleX;
+                _lastReportedY = _rotationAngleY;
+                _lastReportedZ = _rotationAngleZ;
+                
+                // Update last reported W value if we have a 4D die
+                if (is4DDie)
+                {
+                    _lastReportedW = currentW;
+                }
+
+                // Raise the event
+                RotationChanged?.Invoke(this, new RotationChangedEventArgs(_rotationAngleX, _rotationAngleY, _rotationAngleZ, _currentDie));
+            }
         }
     }
 }

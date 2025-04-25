@@ -12,6 +12,7 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
         
         <!-- Control panel will be created programmatically in UIControlsManager -->
@@ -48,5 +49,41 @@
                 </ModelVisual3D.Content>
             </ModelVisual3D>
         </Viewport3D>
+        
+        <!-- Rotation tracking panel -->
+        <Border Grid.Row="3" Background="#F0F0F0" BorderBrush="#DDDDDD" BorderThickness="0,1,0,0" Padding="10,5">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                
+                <!-- X-axis rotation -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Center">
+                    <TextBlock Text="X Rotation: " FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="XRotationLabel" Text="0.0°" Foreground="#0066CC" FontWeight="Bold" VerticalAlignment="Center"/>
+                </StackPanel>
+                
+                <!-- Y-axis rotation -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center">
+                    <TextBlock Text="Y Rotation: " FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="YRotationLabel" Text="0.0°" Foreground="#CC6600" FontWeight="Bold" VerticalAlignment="Center"/>
+                </StackPanel>
+                
+                <!-- Z-axis rotation -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Center">
+                    <TextBlock Text="Z Rotation: " FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="ZRotationLabel" Text="0.0°" Foreground="#009900" FontWeight="Bold" VerticalAlignment="Center"/>
+                </StackPanel>
+                
+                <!-- W rotation (for 4D dice) - initially hidden -->
+                <StackPanel Grid.Column="3" Orientation="Horizontal" HorizontalAlignment="Center" x:Name="WRotationPanel" Visibility="Collapsed">
+                    <TextBlock Text="W Rotation: " FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="WRotationLabel" Text="0.0°" Foreground="#9900CC" FontWeight="Bold" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Grid>
+        </Border>
     </Grid>
 </Window>

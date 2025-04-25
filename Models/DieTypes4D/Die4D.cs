@@ -19,6 +19,24 @@ namespace RotatableDie.Models.DieTypes4D
         public double RotationZW { get; set; } = 0; // Rotation in the Z-W plane
         
         /// <summary>
+        /// Gets the combined W rotation angle in degrees (for display purposes)
+        /// </summary>
+        public double RotationWAngle
+        {
+            get
+            {
+                // We'll use a simple magnitude of the three rotation components as an indicator of total W rotation
+                double magnitude = Math.Sqrt(
+                    Math.Pow(RotationXW, 2) + 
+                    Math.Pow(RotationYW, 2) + 
+                    Math.Pow(RotationZW, 2));
+                
+                // Convert from radians to degrees for display
+                return magnitude * (180 / Math.PI);
+            }
+        }
+        
+        /// <summary>
         /// Store the original 4D vertices before any rotations
         /// </summary>
         protected Point4D[] OriginalVertices4D;
