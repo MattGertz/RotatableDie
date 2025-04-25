@@ -370,15 +370,18 @@ namespace RotatableDie.Services
             
             using (DrawingContext drawingContext = drawingVisual.RenderOpen())
             {
-                // Draw the background texture
-                DrawBackgroundTexture(drawingContext, baseColor, outputSize);
+                // Always use the original base color without modification
+                Color originalColor = baseColor;
                 
-                // Choose the best text color for maximum contrast
-                Color textColor = ColorUtilities.GetOptimalTextColor(baseColor);
+                // Draw the background texture with the original color
+                DrawBackgroundTexture(drawingContext, originalColor, outputSize);
+                
+                // Choose the best text color for maximum contrast based on the original color
+                Color textColor = ColorUtilities.GetOptimalTextColor(originalColor);
                 SolidColorBrush textBrush = new SolidColorBrush(textColor);
                 
                 // Get shadow color from utility method
-                Color shadowColor = ColorUtilities.GetShadowColor(baseColor, textColor);
+                Color shadowColor = ColorUtilities.GetShadowColor(originalColor, textColor);
                 
                 // Draw the text for this face based on cell's numbering system
                 drawingContext.PushOpacity(0.9);

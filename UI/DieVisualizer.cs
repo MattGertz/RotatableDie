@@ -108,6 +108,9 @@ namespace RotatableDie.UI
             }
         }
 
+        // Store the current die color to avoid relying on color extraction from geometry
+        private Color _currentDieColor = Colors.White;
+        
         public DieVisualizer(Viewport3D viewport, DieFactory dieFactory)
         {
             _viewport = viewport;
@@ -196,6 +199,9 @@ namespace RotatableDie.UI
             // Force UI update
             _viewport.InvalidateVisual();
             
+            // Store the current color
+            _currentDieColor = color;
+            
             // Create a new model group for the die
             Model3DGroup dieModelGroup = new Model3DGroup();
             
@@ -211,7 +217,7 @@ namespace RotatableDie.UI
             }
             
             // Create the geometry with the preserved rotation and wireframe mode
-            _currentDie.CreateGeometry(dieModelGroup, color, _wireframeMode);
+            _currentDie.CreateGeometry(dieModelGroup, _currentDieColor, _wireframeMode);
             
             // Apply the unified transform to the model
             dieModelGroup.Transform = _dieTransform;
@@ -228,19 +234,19 @@ namespace RotatableDie.UI
             if (_currentDie == null || _dieVisual.Content == null)
                 return;
                 
-            Color dieColor = GetCurrentDieColor();
+            // Use the stored color instead of trying to extract it
             Model3DGroup dieModelGroup = new Model3DGroup();
             
             // If it's a 4D die, preserve the 4D rotations
             if (_currentDie is Die4D die4D)
             {
                 // Recreate geometry with preserved 4D rotation and wireframe mode
-                die4D.CreateGeometry(dieModelGroup, dieColor, _wireframeMode);
+                die4D.CreateGeometry(dieModelGroup, _currentDieColor, _wireframeMode);
             }
             else
             {
                 // Recreate geometry with wireframe mode
-                _currentDie.CreateGeometry(dieModelGroup, dieColor, _wireframeMode);
+                _currentDie.CreateGeometry(dieModelGroup, _currentDieColor, _wireframeMode);
             }
             
             // Apply the existing 3D transform
@@ -467,11 +473,8 @@ namespace RotatableDie.UI
                     // Update the geometry with the new 4D rotation
                     Model3DGroup dieModelGroup = new Model3DGroup();
                     
-                    // Extract the current color using our helper method
-                    Color dieColor = GetCurrentDieColor();
-                    
-                    // Recreate geometry with updated 4D rotation - include wireframe mode!
-                    die4D.CreateGeometry(dieModelGroup, dieColor, _wireframeMode);
+                    // Use the stored current color instead of trying to extract it
+                    die4D.CreateGeometry(dieModelGroup, _currentDieColor, _wireframeMode);
                     
                     // Apply the existing 3D transform
                     dieModelGroup.Transform = _dieTransform;
@@ -585,11 +588,8 @@ namespace RotatableDie.UI
                 // Update the geometry with the new rotation
                 Model3DGroup dieModelGroup = new Model3DGroup();
                 
-                // Extract the current color from the existing model
-                Color dieColor = GetCurrentDieColor();
-                
-                // Recreate geometry with updated 4D rotation - include wireframe mode!
-                die4D.CreateGeometry(dieModelGroup, dieColor, _wireframeMode);
+                // Use the stored current color instead of trying to extract it
+                die4D.CreateGeometry(dieModelGroup, _currentDieColor, _wireframeMode);
                 
                 // Apply the existing 3D transform
                 dieModelGroup.Transform = _dieTransform;
@@ -745,11 +745,8 @@ namespace RotatableDie.UI
                 // Update the geometry with the new 4D rotation
                 Model3DGroup dieModelGroup = new Model3DGroup();
                 
-                // Extract the current color
-                Color dieColor = GetCurrentDieColor();
-                
-                // Recreate geometry with updated 4D rotation
-                die4D.CreateGeometry(dieModelGroup, dieColor, _wireframeMode);
+                // Use the stored color instead of trying to extract it
+                die4D.CreateGeometry(dieModelGroup, _currentDieColor, _wireframeMode);
                 
                 // Apply the existing 3D transform
                 dieModelGroup.Transform = _dieTransform;

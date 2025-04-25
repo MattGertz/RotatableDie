@@ -259,15 +259,6 @@ namespace RotatableDie.Models.DieTypes4D
                 return; // Skip this cell if it doesn't have enough vertices
             }
             
-            // Create a material with appropriate transparency
-            Material material = new DiffuseMaterial(
-                new SolidColorBrush(
-                    Color.FromArgb(
-                        (byte)(opacity * 255), 
-                        color.R, 
-                        color.G, 
-                        color.B)));
-            
             // For simplicity, we'll split the surrounding vertices into groups to form triangular faces
             // Each triangular face consists of the current vertex and two adjacent vertices
             for (int faceIdx = 0; faceIdx < 8; faceIdx++)
@@ -342,12 +333,12 @@ namespace RotatableDie.Models.DieTypes4D
                 triangleMesh.TextureCoordinates.Add(new Point(1, 0));
                 triangleMesh.TextureCoordinates.Add(new Point(0.5, 1));
                 
-                // Create texture for this face
+                // Create texture for this face - always using the original color
                 ImageBrush faceBrush = new ImageBrush(
                     TextureService.Create4DCellTexture(
                         cell.Number - 1,       // Cell index 
                         faceIdx,               // Face index
-                        color,                 // Base color
+                        color,                 // Always use the original color
                         false,                 // Not shared
                         -1,                    // No sharing cell
                         192));                 // Texture size
@@ -355,7 +346,7 @@ namespace RotatableDie.Models.DieTypes4D
                 // Fix mirrored text by applying a ScaleTransform to the brush
                 faceBrush.RelativeTransform = new ScaleTransform(-1, 1, 0.5, 0.5);
                 
-                // Create material with the texture
+                // Create material with the texture and preserve the original color
                 Material textureMaterial = new DiffuseMaterial(faceBrush);
                 
                 // Set opacity for the material

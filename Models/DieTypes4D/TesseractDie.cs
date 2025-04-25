@@ -391,14 +391,7 @@ namespace RotatableDie.Models.DieTypes4D
         private void RenderCubicCell(Model3DGroup modelGroup, CubicCell cell, Color baseColor)
         {
             // Apply transparency based on cell visibility
-            Color cellColor = Color.FromArgb(
-                (byte)(255 * cell.Opacity), 
-                baseColor.R, 
-                baseColor.G, 
-                baseColor.B);
-            
-            // Create the material with appropriate opacity
-            Material material = new DiffuseMaterial(new SolidColorBrush(cellColor));
+            double opacity = cell.Opacity;
             
             // Define the faces of a cube (groups of 4 vertices)
             int[][] cubeFaces = new int[][]
@@ -470,10 +463,11 @@ namespace RotatableDie.Models.DieTypes4D
                 }
                 
                 // Create texture for this face using the specialized method
+                // Always use the passed in baseColor to maintain color during 4D rotation
                 BitmapImage texture = TextureService.Create4DCellTexture(
                     cell.Number,         // Cell index for numbering system
                     faceIndex,           // Face number
-                    baseColor,           // Original base color selected by user (not cellColor)
+                    baseColor,           // Original base color selected by user - use as is
                     isShared,            // Whether this face is shared
                     sharingCellIndex);   // Index of the sharing cell, if any
                 
@@ -510,7 +504,7 @@ namespace RotatableDie.Models.DieTypes4D
                 }
                 
                 // Apply opacity through the brush instead of the material
-                textureBrush.Opacity = cell.Opacity;
+                textureBrush.Opacity = opacity;
                 Material faceMat = new DiffuseMaterial(textureBrush);
                 
                 // Create and add the 3D model for this face
@@ -520,14 +514,14 @@ namespace RotatableDie.Models.DieTypes4D
                 modelGroup.Children.Add(faceModel);
             }
             
-            // Add edges for better visualization
-            AddCellEdges(modelGroup, cell);
+            // Add edges for better visualization - always use original color for edges
+            AddCellEdges(modelGroup, cell, baseColor);
         }
         
         /// <summary>
         /// Add edges to the cubic cell for better visualization
         /// </summary>
-        private void AddCellEdges(Model3DGroup modelGroup, CubicCell cell)
+        private void AddCellEdges(Model3DGroup modelGroup, CubicCell cell, Color baseColor)
         {
             // Define the edges of a cube (pairs of vertex indices)
             int[][] cubeEdges = new int[][]
@@ -538,20 +532,6 @@ namespace RotatableDie.Models.DieTypes4D
             };
             
             // Adjust edge color based on the base cell color but darker
-            Color baseColor;
-            if (modelGroup.Children.Count > 0 && 
-                modelGroup.Children[0] is GeometryModel3D geometryModel && 
-                geometryModel.Material is DiffuseMaterial diffuseMaterial &&
-                diffuseMaterial.Brush is SolidColorBrush colorBrush)
-            {
-                baseColor = colorBrush.Color;
-            }
-            else
-            {
-                // Default color if we can't get the material
-                baseColor = Colors.Gray;
-            }
-            
             Color edgeColor = Color.FromArgb(
                 (byte)(255 * edgeOpacity * cell.Opacity), 
                 (byte)(baseColor.R * 0.7), 

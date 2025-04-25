@@ -369,13 +369,6 @@ namespace RotatableDie.Models.DieTypes4D
         /// </summary>
         private void RenderTetrahedralCell(Model3DGroup modelGroup, TetrahedralCell cell, Color baseColor)
         {
-            // Apply transparency based on cell visibility
-            Color cellColor = Color.FromArgb(
-                (byte)(255 * cell.Opacity), 
-                baseColor.R, 
-                baseColor.G, 
-                baseColor.B);
-            
             // Define the faces of a tetrahedron (groups of 3 vertices)
             int[][] tetraFaces = new int[][]
             {
@@ -444,11 +437,11 @@ namespace RotatableDie.Models.DieTypes4D
                     }
                 }
                 
-                // Create texture for this face
+                // Create texture for this face - always use the original base color
                 BitmapImage texture = CreatePentachoronFaceTexture(
                     cell.Number,         // Cell index for numbering system
                     faceIndex,           // Face number
-                    baseColor,           // Original base color selected by user
+                    baseColor,           // Original base color - important to use this consistently
                     isShared,            // Whether this face is shared
                     sharingCellIndex);   // Index of the sharing cell, if any
                 
@@ -481,7 +474,7 @@ namespace RotatableDie.Models.DieTypes4D
                     textureBrush.RelativeTransform = new ScaleTransform(-1, 1, 0.5, 0.5);
                 }
                 
-                // Apply opacity through the brush instead of the material
+                // Apply opacity through the brush
                 textureBrush.Opacity = cell.Opacity;
                 Material faceMat = new DiffuseMaterial(textureBrush);
                 
@@ -492,8 +485,8 @@ namespace RotatableDie.Models.DieTypes4D
                 modelGroup.Children.Add(faceModel);
             }
             
-            // Add edges for better visualization
-            AddCellEdges(modelGroup, cell);
+            // Add edges for better visualization - using the same base color
+            AddCellEdges(modelGroup, cell, baseColor);
         }
         
         /// <summary>
@@ -797,7 +790,7 @@ namespace RotatableDie.Models.DieTypes4D
         /// <summary>
         /// Add edges to the tetrahedral cell for better visualization
         /// </summary>
-        private void AddCellEdges(Model3DGroup modelGroup, TetrahedralCell cell)
+        private void AddCellEdges(Model3DGroup modelGroup, TetrahedralCell cell, Color baseColor)
         {
             // Define the edges of a tetrahedron (pairs of vertex indices)
             int[][] tetraEdges = new int[][]

@@ -342,28 +342,19 @@ namespace RotatableDie.Models.DieTypes4D
             double opacity = useTransparency ? 
                 0.3 + 0.7 * (1 + cell.Visibility) / 2 : 
                 1.0;
-                
-            // Create the material with the appropriate transparency
-            Material material = new DiffuseMaterial(
-                new SolidColorBrush(
-                    Color.FromArgb(
-                        (byte)(opacity * 255), 
-                        color.R, 
-                        color.G, 
-                        color.B)));
-                        
-            // Define the triangular faces of the tetrahedron
-            int[][] triangleFaces = new int[][]
-            {
-                new int[] { 0, 1, 2 },
-                new int[] { 0, 1, 3 },
-                new int[] { 0, 2, 3 },
-                new int[] { 1, 2, 3 }
-            };
             
             // For each triangular face
-            for (int faceIdx = 0; faceIdx < triangleFaces.Length; faceIdx++)
+            for (int faceIdx = 0; faceIdx < 4; faceIdx++)
             {
+                // Define the triangular faces of the tetrahedron
+                int[][] triangleFaces = new int[][]
+                {
+                    new int[] { 0, 1, 2 },
+                    new int[] { 0, 1, 3 },
+                    new int[] { 0, 2, 3 },
+                    new int[] { 1, 2, 3 }
+                };
+                
                 // Create a mesh for this face
                 MeshGeometry3D triangleMesh = new MeshGeometry3D();
                 
@@ -409,12 +400,12 @@ namespace RotatableDie.Models.DieTypes4D
                 triangleMesh.Normals.Add(normalPointingOutward ? normal : -normal);
                 triangleMesh.Normals.Add(normalPointingOutward ? normal : -normal);
                 
-                // Create texture for this face
+                // Create texture for this face - always using the original color
                 ImageBrush faceBrush = new ImageBrush(
                     TextureService.Create4DCellTexture(
                         cell.Number - 1,       // Cell index 
                         faceIdx,               // Face index
-                        color,                 // Base color
+                        color,                 // Original base color
                         false,                 // Not shared
                         -1,                    // No sharing cell
                         192));                 // Texture size
@@ -447,7 +438,7 @@ namespace RotatableDie.Models.DieTypes4D
                             modelGroup,
                             vertices[triangleFaces[faceIdx][i]],
                             vertices[triangleFaces[faceIdx][j]],
-                            Colors.Black,
+                            color, // Use the original color for wireframe
                             opacity * 0.7);
                     }
                 }
