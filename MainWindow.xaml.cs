@@ -26,6 +26,16 @@ namespace RotatableDie
         private Color _currentDieColor = Colors.White;
         private DieType _currentDieType = DieType.Cube;
         
+        // Constants for rotation intervals (in seconds)
+        private const double WIREFRAME_INTERVAL = 0.1;
+        private const double TEXTURED_3D_INTERVAL = 0.1; // Same as wireframe for 3D dice
+        private const double TEXTURED_4D_STANDARD_INTERVAL = 0.1; // Changed from 1.0 to 0.1 for testing
+        private const double TEXTURED_4D_COMPLEX_INTERVAL = 0.1; // Changed from 3.0 to 0.1 for testing
+        
+        // Constants for rotation scaling factors
+        private const double WIREFRAME_4D_SCALE = 0.2;
+        private const double TEXTURED_4D_SCALE = 0.05;
+        
         // Random rotation fields
         private readonly DispatcherTimer _rotationDirectionTimer;  // Timer to change rotation direction
         private readonly Random _random = new Random();
@@ -81,13 +91,12 @@ namespace RotatableDie
                 if (_visualizer.WireframeMode)
                 {
                     // For wireframe mode with 0.1 second updates, use a small increment
-                    _visualizer.ApplyRandom4DRotation(_rotationStepW * 0.2);
+                    _visualizer.ApplyRandom4DRotation(_rotationStepW * WIREFRAME_4D_SCALE);
                 }
                 else 
                 {
-                    // For textured mode with 3 second updates, use a much smaller increment
-                    // to avoid large jumps in orientation - just 1 degree per update
-                    _visualizer.ApplyRandom4DRotation(_rotationStepW * 0.05);
+                    // For textured mode, use a much smaller increment to avoid large jumps
+                    _visualizer.ApplyRandom4DRotation(_rotationStepW * TEXTURED_4D_SCALE);
                 }
             }
             
@@ -138,24 +147,30 @@ namespace RotatableDie
             // Set rotation interval based on die type and wireframe mode
             if (_visualizer.WireframeMode)
             {
-                // Wireframe mode: 0.1 second update rate
-                _rotationDirectionTimer.Interval = TimeSpan.FromSeconds(0.1);
-                // Calculate how many ticks for the full duration
-                _ticksPerDirection = (int)Math.Ceiling(_directionDuration / 0.1);
+                // All wireframe dice: 0.1 second update rate
+                _rotationDirectionTimer.Interval = TimeSpan.FromSeconds(WIREFRAME_INTERVAL);
+                _ticksPerDirection = (int)Math.Ceiling(_directionDuration / WIREFRAME_INTERVAL);
             }
             else if (Is4DDie(_currentDieType))
             {
-                // Textured 4D solid: 3 second update rate
-                _rotationDirectionTimer.Interval = TimeSpan.FromSeconds(3.0);
-                // Calculate how many ticks for the full duration
-                _ticksPerDirection = (int)Math.Ceiling(_directionDuration / 3.0);
+                if (_currentDieType == DieType.Octaplex)
+                {
+                    // Special case for Octaplex: 0.1 second update rate
+                    _rotationDirectionTimer.Interval = TimeSpan.FromSeconds(TEXTURED_4D_COMPLEX_INTERVAL);
+                    _ticksPerDirection = (int)Math.Ceiling(_directionDuration / TEXTURED_4D_COMPLEX_INTERVAL);
+                }
+                else
+                {
+                    // Other 4D dice (Pentachoron, Hexadecachoron, Tesseract): 0.1 second update rate
+                    _rotationDirectionTimer.Interval = TimeSpan.FromSeconds(TEXTURED_4D_STANDARD_INTERVAL);
+                    _ticksPerDirection = (int)Math.Ceiling(_directionDuration / TEXTURED_4D_STANDARD_INTERVAL);
+                }
             }
             else
             {
-                // Textured 3D solid: 0.5 second update rate
-                _rotationDirectionTimer.Interval = TimeSpan.FromSeconds(0.5);
-                // Calculate how many ticks for the full duration
-                _ticksPerDirection = (int)Math.Ceiling(_directionDuration / 0.5);
+                // Textured 3D solids: same as wireframe (0.1 second)
+                _rotationDirectionTimer.Interval = TimeSpan.FromSeconds(TEXTURED_3D_INTERVAL);
+                _ticksPerDirection = (int)Math.Ceiling(_directionDuration / TEXTURED_3D_INTERVAL);
             }
             
             // Always ensure at least one tick per direction
