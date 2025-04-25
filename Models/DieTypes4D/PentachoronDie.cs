@@ -195,8 +195,8 @@ namespace RotatableDie.Models.DieTypes4D
                         {
                             renderedEdges.Add(edgeKey);
                             
-                            // Adjust edge opacity based on cell visibility
-                            double opacity = Math.Min(1.0, Math.Max(0.1, cell.Visibility));
+                            // Always use full opacity for wireframe mode
+                            double opacity = 1.0;
                             
                             // Add the wireframe edge
                             AddWireframeEdge(modelGroup, 
@@ -216,7 +216,7 @@ namespace RotatableDie.Models.DieTypes4D
         private void AddWireframeEdge(Model3DGroup modelGroup, Point3D point1, Point3D point2, Color color, double opacity = 1.0)
         {
             // Create a simple line segment between the two points
-            double thickness = 0.01; // Thickness of the wireframe edges
+            double thickness = 0.01; // Updated to match 3D dice thickness
             
             // Create a line segment mesh (two triangles forming a thin rectangle)
             MeshGeometry3D lineMesh = new MeshGeometry3D();
@@ -318,8 +318,8 @@ namespace RotatableDie.Models.DieTypes4D
             lineMesh.TriangleIndices.Add(6);
             lineMesh.TriangleIndices.Add(7);
             
-            // Create material for the edge with proper transparency
-            Color edgeColor = Color.FromArgb((byte)(255 * opacity), color.R, color.G, color.B);
+            // Override with solid black color for wireframe edges in 4D dice
+            Color edgeColor = Colors.Black;
             Material edgeMaterial = new DiffuseMaterial(new SolidColorBrush(edgeColor));
             
             // Create the 3D model and add it to the group

@@ -114,18 +114,32 @@ A tesseract is the 4-dimensional analog of a cube, just as a cube is the 3-dimen
 - Cells are rendered with transparency based on their position in the W dimension
 - Shared faces between cells display both cell's numbering systems
 
+#### Random Rotation Features
+The application supports automatic random rotation for all dice:
+
+- All dice in wireframe mode update at 0.1-second intervals
+- 3D dice in textured mode update at 0.1-second intervals
+- 4D dice in textured mode also update at 0.1-second intervals (but the Octaplex may perform slowly on machines with limited graphics capabilities)
+- Rotation direction changes randomly after a user-specified duration (default: 10 seconds)
+- Rotation speed is appropriately scaled to ensure smooth motion for both 3D and 4D dice
+
 #### Unique Numbering Systems
-Each of the 8 cubic cells uses a different numbering system:
+Each of the 8 cubic cells in the tesseract uses a different numbering system:
 - Cell 0: Arabic numerals (1-6)
 - Cell 1: Latin alphabet (A-F)
 - Cell 2: Roman numerals (I-VI)
-- Cell 3: Greek letters (α-ζ)
-- Cell 4: Binary numbers (bold)
+- Cell 3: Greek letters (α, β, γ, δ, ε, ζ, η, θ)
+- Cell 4: Special symbols (◊, ♦, ■, ●, ▲, △, ♥, ♠)
 - Cell 5: Hexadecimal numbers (italic)
-- Cell 6: Dot patterns (like on regular dice)
-- Cell 7: Circled numbers (①-⑥)
+- Cell 6: Musical symbols (♩, ♪, ♫, ♬, §, ¶, †, ‡)
+- Cell 7: Circled numbers (①-⑧)
 
-This multi-system approach makes it easier to track and understand the complex 4D relationships as the tesseract rotates.
+For other 4D dice:
+- The Hexadecachoron (16-cell) uses 16 different numbering systems with various prefixes like x1-x4, y1-y4, [1-[4, etc.
+- The Octaplex (24-cell) extends the Hexadecachoron's system with 8 additional variations like >1-8, <1-8, etc.
+- The Pentachoron (5-cell) uses unique numbering for each cell to distinguish its tetrahedral cells
+
+This multi-system approach makes it easier to track and understand the complex 4D relationships as the dice rotate in 4D space.
 
 ### Challenges with the d10 Implementation
 

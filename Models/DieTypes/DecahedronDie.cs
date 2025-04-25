@@ -191,24 +191,30 @@ namespace RotatableDie.Models.DieTypes
                 // Add the edges from pole to vertices
                 AddWireframeEdge(modelGroup, topPole, topPentagonVertices[i], color);
                 
-                // Add edges along the top pentagon
-                AddWireframeEdge(modelGroup, topPentagonVertices[i], topPentagonVertices[nextIndex], color);
+                // We're NOT adding the edges along the top pentagon to avoid connecting L and R
+                // REMOVING THIS LINE to eliminate the line between L and R in each kite
+                // AddWireframeEdge(modelGroup, topPentagonVertices[i], topPentagonVertices[nextIndex], color);
                 
-                // Add edges from top vertices to bottom vertices
+                // Add edges connecting top pentagon to bottom pentagon
                 AddWireframeEdge(modelGroup, topPentagonVertices[i], bottomPentagonVertices[i], color);
                 
-                // Add edges along the bottom pentagon
-                AddWireframeEdge(modelGroup, bottomPentagonVertices[i], bottomPentagonVertices[nextIndex], color);
+                // We're NOT adding the edges along the bottom pentagon to avoid connecting L and R in bottom pyramid
+                // REMOVING THIS LINE to eliminate the line between L and R in each bottom kite
+                // AddWireframeEdge(modelGroup, bottomPentagonVertices[i], bottomPentagonVertices[nextIndex], color);
                 
-                // Add edges from pole to bottom vertices
+                // Add edges from bottom pole to bottom pentagon vertices
                 AddWireframeEdge(modelGroup, bottomPole, bottomPentagonVertices[i], color);
+                
+                // Add diagonal edge connecting top pentagon to bottom pentagon
+                // This diagonal edge completes each kite shape without adding internal lines
+                AddWireframeEdge(modelGroup, topPentagonVertices[nextIndex], bottomPentagonVertices[i], color);
             }
         }
         
         private void AddWireframeEdge(Model3DGroup modelGroup, Point3D point1, Point3D point2, Color color)
         {
             // Create a thin tube between the two points to represent an edge
-            double thickness = 0.005; // Adjust thickness as needed
+            double thickness = 0.01; // Updated to match standard thickness used in 3D dice
             Vector3D direction = point2 - point1;
             double length = direction.Length;
             direction.Normalize();
@@ -265,8 +271,8 @@ namespace RotatableDie.Models.DieTypes
             // Add translation to position the edge at the start point
             transformGroup.Children.Add(new TranslateTransform3D(point1.X, point1.Y, point1.Z));
             
-            // Create material for the edge (use the die color, but more visible for wireframe)
-            Material edgeMaterial = new DiffuseMaterial(new SolidColorBrush(Color.FromRgb(0, 0, 0)));
+            // Create material for the edge (use solid black for visibility)
+            Material edgeMaterial = new DiffuseMaterial(new SolidColorBrush(Colors.Black));
             
             // Create the model and add it to the group
             GeometryModel3D model = new GeometryModel3D();
