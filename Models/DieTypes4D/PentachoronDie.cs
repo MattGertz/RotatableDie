@@ -216,7 +216,7 @@ namespace RotatableDie.Models.DieTypes4D
         private void AddWireframeEdge(Model3DGroup modelGroup, Point3D point1, Point3D point2, Color color, double opacity = 1.0)
         {
             // Create a simple line segment between the two points
-            double thickness = 0.01; // Updated to match 3D dice thickness
+            double thickness = 0.005; // Thinner wireframe for 4D objects (half of the 3D dice thickness)
             
             // Create a line segment mesh (two triangles forming a thin rectangle)
             MeshGeometry3D lineMesh = new MeshGeometry3D();
