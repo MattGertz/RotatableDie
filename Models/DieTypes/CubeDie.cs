@@ -63,9 +63,9 @@ namespace RotatableDie.Models.DieTypes
             GeometryHelper.CreateQuadFace(modelGroup, vertices, new int[] { 0, 3, 2, 1 }, textures[0]); // Front face - 1
             GeometryHelper.CreateQuadFace(modelGroup, vertices, new int[] { 1, 2, 6, 5 }, textures[1]); // Right face - 2
             GeometryHelper.CreateQuadFace(modelGroup, vertices, new int[] { 5, 6, 7, 4 }, textures[5]); // Back face - 6
-            GeometryHelper.CreateQuadFace(modelGroup, vertices, new int[] { 4, 7, 3, 0 }, textures[2]); // Left face - 3
+            GeometryHelper.CreateQuadFace(modelGroup, vertices, new int[] { 4, 7, 3, 0 }, textures[4]); // Left face - 5
             GeometryHelper.CreateQuadFace(modelGroup, vertices, new int[] { 3, 7, 6, 2 }, textures[3]); // Top face - 4
-            GeometryHelper.CreateQuadFace(modelGroup, vertices, new int[] { 4, 0, 1, 5 }, textures[4]); // Bottom face - 5
+            GeometryHelper.CreateQuadFace(modelGroup, vertices, new int[] { 4, 0, 1, 5 }, textures[2]); // Bottom face - 3
         }
         
         private void AddWireframeEdge(Model3DGroup modelGroup, Point3D point1, Point3D point2, Color color)
