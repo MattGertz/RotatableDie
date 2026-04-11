@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Simple flat die face (value 6) — clear at all sizes including 16x16 -->
+  <rect x="32" y="32" width="448" height="448" rx="64" ry="64" fill="#DD2222"/>
+  <rect x="32" y="32" width="448" height="448" rx="64" ry="64" fill="none" stroke="#991111" stroke-width="16"/>
+  <!-- 6 pips: left column -->
+  <circle cx="176" cy="144" r="48" fill="white"/>
+  <circle cx="176" cy="256" r="48" fill="white"/>
+  <circle cx="176" cy="368" r="48" fill="white"/>
+  <!-- 6 pips: right column -->
+  <circle cx="336" cy="144" r="48" fill="white"/>
+  <circle cx="336" cy="256" r="48" fill="white"/>
+  <circle cx="336" cy="368" r="48" fill="white"/>
+</svg>

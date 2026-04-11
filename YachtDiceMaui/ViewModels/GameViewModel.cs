@@ -97,8 +97,8 @@ public class GameViewModel : INotifyPropertyChanged
         if (!CanRoll || _scorecard == null) return;
 
         RollNumber++;
-        foreach (var die in Dice)
-            die.Roll();
+        // Don't randomize dice values here — physics engine handles rolling.
+        // Face values will be read back from physics in OnPhysicsSettled.
 
         CanScore = true;
         CanRoll = RollNumber < 3;
@@ -111,13 +111,17 @@ public class GameViewModel : INotifyPropertyChanged
         };
 
         DiceChanged?.Invoke();
-        ScorecardChanged?.Invoke();
-
-        // Check for yacht with valid placement — celebrate before user scores
-        int[] values = GetCurrentValues();
-        if (ScoreCalculator.IsYacht(values) && _scorecard.HasValidYachtPlacement(values))
-            YachtDetected?.Invoke();
     }
+
+    /// <summary>
+    /// Notify that the scorecard should be refreshed (after physics settle updates values).
+    /// </summary>
+    public void NotifyScorecardChanged() => ScorecardChanged?.Invoke();
+
+    /// <summary>
+    /// Raise the YachtDetected event (called from GamePage after physics settle).
+    /// </summary>
+    public void RaiseYachtDetected() => YachtDetected?.Invoke();
 
     public int[] GetCurrentValues() =>
         Dice.Select(d => d.Value).ToArray();

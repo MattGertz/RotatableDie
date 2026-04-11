@@ -1,6 +1,8 @@
 using YachtDiceMaui.ViewModels;
 using YachtDiceMaui.Models;
 using YachtDiceMaui.Data;
+using YachtDiceMaui.Physics;
+using YachtDiceMaui.Rendering;
 
 namespace YachtDiceMaui.Views;
 
@@ -16,11 +18,10 @@ public partial class GamePage : ContentPage
 
     // Center panel - dice table + tray
     private Grid _dicePanel = null!;
-    private AbsoluteLayout _diceTable = null!;
-    private HorizontalStackLayout _diceTray = null!;
+    private DiceTableView _diceTableView = null!;
+    private readonly IDicePhysics _physics = new SimpleDicePhysics();
+    private readonly DiceAppearance _appearance = new();
     private Button _rollButton = null!;
-    private readonly GraphicsView[] _diceViews = new GraphicsView[ScoreCalculator.NumDice];
-    private readonly DieDrawable[] _dieDrawables = new DieDrawable[ScoreCalculator.NumDice];
 
     // Right panel - scorecard
     private Grid _scorecardPanel = null!;
@@ -114,23 +115,24 @@ public partial class GamePage : ContentPage
             BackgroundColor = Color.FromArgb("#1A1A2E"),
             RowDefinitions =
             {
-                new RowDefinition(GridLength.Star),      // Table area
+                new RowDefinition(GridLength.Star),      // 3D dice table
                 new RowDefinition(GridLength.Auto),       // Roll button
-                new RowDefinition(new GridLength(90)),    // Tray
             },
             Padding = new Thickness(5),
             RowSpacing = 5,
         };
 
-        // Dice table (absolute layout for free positioning)
-        _diceTable = new AbsoluteLayout { BackgroundColor = Color.FromArgb("#0D1117") };
+        // 3D Dice table view (replaces AbsoluteLayout + GraphicsView)
+        _diceTableView = new DiceTableView(_physics, _appearance);
+        _diceTableView.DiceSettled += OnPhysicsSettled;
+        _diceTableView.DieTapped += OnDieTapped;
         var tableBorder = new Border
         {
             Stroke = Color.FromArgb("#533E2D"),
             StrokeThickness = 3,
-            Background = new SolidColorBrush(Color.FromArgb("#1B3A1B")),
+            Background = new SolidColorBrush(Color.FromArgb("#0D1117")),
             StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 8 },
-            Content = _diceTable,
+            Content = _diceTableView,
         };
         _dicePanel.Add(tableBorder, 0, 0);
 
@@ -151,42 +153,6 @@ public partial class GamePage : ContentPage
         };
         _rollButton.Clicked += OnRollClicked;
         _dicePanel.Add(_rollButton, 0, 1);
-
-        // Dice tray
-        _diceTray = new HorizontalStackLayout
-        {
-            Spacing = 8,
-            HorizontalOptions = LayoutOptions.Center,
-            VerticalOptions = LayoutOptions.Center,
-        };
-
-        for (int i = 0; i < ScoreCalculator.NumDice; i++)
-        {
-            _dieDrawables[i] = new DieDrawable();
-            var gv = new GraphicsView
-            {
-                Drawable = _dieDrawables[i],
-                WidthRequest = 70,
-                HeightRequest = 70,
-                BackgroundColor = Colors.Transparent,
-            };
-            int index = i;
-            var tapGesture = new TapGestureRecognizer();
-            tapGesture.Tapped += (_, _) => OnDieTapped(index);
-            gv.GestureRecognizers.Add(tapGesture);
-            _diceViews[i] = gv;
-        }
-
-        var trayBorder = new Border
-        {
-            Stroke = Color.FromArgb("#533E2D"),
-            StrokeThickness = 2,
-            Background = new SolidColorBrush(Color.FromArgb("#2A1810")),
-            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 6 },
-            Padding = new Thickness(8, 4),
-            Content = _diceTray,
-        };
-        _dicePanel.Add(trayBorder, 0, 2);
     }
 
     // ── Scorecard Panel (Right) ──────────────────────────────────
@@ -490,6 +456,7 @@ public partial class GamePage : ContentPage
             if (!confirm) return;
         }
         _vm.NewGame(GameMode.Normal);
+        _diceTableView.ResetToStart();
         _rollButton.IsEnabled = true;
         _rollButton.IsVisible = true;
     }
@@ -502,29 +469,85 @@ public partial class GamePage : ContentPage
             if (!confirm) return;
         }
         _vm.NewGame(GameMode.Triple);
+        _diceTableView.ResetToStart();
         _rollButton.IsEnabled = true;
         _rollButton.IsVisible = true;
     }
 
     private void OnRollClicked(object? sender, EventArgs e)
     {
+        // Collect held indices
+        var heldIndices = new List<int>();
+        for (int i = 0; i < ScoreCalculator.NumDice; i++)
+        {
+            if (_diceTableView.IsHeld(i))
+                heldIndices.Add(i);
+        }
+
+        // Disable roll button during animation
+        _rollButton.IsEnabled = false;
+
+        // Tell ViewModel about the roll (updates roll count/state)
         _vm.Roll();
+
+        // Start physics roll animation
+        _diceTableView.Roll(heldIndices);
+    }
+
+    /// <summary>
+    /// Called when physics dice have all settled after a roll.
+    /// Reads face values and updates the ViewModel dice.
+    /// </summary>
+    private void OnPhysicsSettled()
+    {
+        // Read settled face values from physics into the ViewModel
+        for (int i = 0; i < ScoreCalculator.NumDice; i++)
+        {
+            _vm.Dice[i].Value = _diceTableView.GetFaceValue(i);
+        }
+
+        // Re-enable roll button if rolls remain
+        _rollButton.IsEnabled = _vm.CanRoll;
+
+        // Update scorecard with new values
+        _vm.NotifyScorecardChanged();
+
+        // Check for yacht
+        int[] values = _vm.GetCurrentValues();
+        if (ScoreCalculator.IsYacht(values) && _vm.Scorecard?.HasValidYachtPlacement(values) == true)
+            _vm.RaiseYachtDetected();
     }
 
     private void OnDieTapped(int index)
     {
-        _vm.ToggleDieHold(index);
+        if (_vm.RollNumber == 0) return; // Can't hold before first roll
+        if (!_vm.CanScore) return; // Don't allow hold during animation
+
+        if (_diceTableView.IsHeld(index))
+        {
+            _diceTableView.SetUnheld(index);
+            _vm.Dice[index].IsHeld = false;
+        }
+        else
+        {
+            _diceTableView.SetHeld(index, 0); // slot is computed internally
+            _vm.Dice[index].IsHeld = true;
+        }
     }
 
     private async Task OnScoreCellTapped(ScoreCategory category, int column)
     {
-        _vm.TryScoreCategory(category, column);
+        if (_vm.TryScoreCategory(category, column))
+        {
+            // Reset the 3D dice table to starting positions
+            _diceTableView.ResetToStart();
+        }
         await Task.CompletedTask;
     }
 
     private async void OnDiceSkins(object? sender, EventArgs e)
     {
-        await DisplayAlert("Dice Skins", "Dice customization coming soon!", "OK");
+        await Navigation.PushModalAsync(new DiceSkinsPage(_appearance));
     }
 
     private async void OnRules(object? sender, EventArgs e)
@@ -569,68 +592,6 @@ public partial class GamePage : ContentPage
         _rollButton.Text = _vm.RollButtonText;
         _rollButton.IsEnabled = _vm.CanRoll;
         _rollButton.IsVisible = _vm.GameInProgress;
-
-        // Position dice on the table or in the tray
-        _diceTable.Children.Clear();
-        _diceTray.Children.Clear();
-
-        for (int i = 0; i < ScoreCalculator.NumDice; i++)
-        {
-            var die = _vm.Dice[i];
-            _dieDrawables[i].Value = die.Value;
-            _diceViews[i].Invalidate();
-
-            if (die.IsHeld)
-            {
-                // Held dice go to the tray
-                _diceTray.Add(_diceViews[i]);
-            }
-            else
-            {
-                // Unheld dice on the table
-                var gv = _diceViews[i];
-                _diceTable.Add(gv);
-
-                if (_vm.RollNumber == 0)
-                    PlaceDieInPentagon(gv, i);
-                else
-                    PlaceDieOnTable(gv, i);
-            }
-        }
-    }
-
-    private void PlaceDieInPentagon(GraphicsView gv, int index)
-    {
-        double tableW = Math.Max(_diceTable.Width, 300);
-        double tableH = Math.Max(_diceTable.Height, 200);
-        double dieSize = 70;
-        double cx = tableW / 2 - dieSize / 2;
-        double cy = tableH / 2 - dieSize / 2;
-        double radius = Math.Min(tableW, tableH) * 0.22;
-
-        // Pentagon: 5 points starting from top, clockwise
-        double angle = -Math.PI / 2 + index * (2 * Math.PI / 5);
-        double x = cx + radius * Math.Cos(angle);
-        double y = cy + radius * Math.Sin(angle);
-
-        AbsoluteLayout.SetLayoutBounds(gv, new Rect(x, y, dieSize, dieSize));
-        AbsoluteLayout.SetLayoutFlags(gv, Microsoft.Maui.Layouts.AbsoluteLayoutFlags.None);
-    }
-
-    private void PlaceDieOnTable(GraphicsView gv, int index)
-    {
-        // Scatter dice across the table area
-        double tableW = Math.Max(_diceTable.Width, 300);
-        double tableH = Math.Max(_diceTable.Height, 200);
-        double dieSize = 70;
-
-        // Use a seeded position per die so they don't jump around on redraw
-        var rng = new Random(_vm.RollNumber * 100 + index);
-        double x = rng.NextDouble() * (tableW - dieSize - 40) + 20;
-        double y = rng.NextDouble() * (tableH - dieSize - 40) + 20;
-
-        AbsoluteLayout.SetLayoutBounds(gv, new Rect(x, y, dieSize, dieSize));
-        AbsoluteLayout.SetLayoutFlags(gv, Microsoft.Maui.Layouts.AbsoluteLayoutFlags.None);
     }
 
     private void OnScorecardChanged()
@@ -657,10 +618,8 @@ public partial class GamePage : ContentPage
             },
         };
 
-        // Add to the dice table so it appears centered over the play area
-        _diceTable.Add(label);
-        AbsoluteLayout.SetLayoutBounds(label, new Rect(0, 0, 1, 1));
-        AbsoluteLayout.SetLayoutFlags(label, Microsoft.Maui.Layouts.AbsoluteLayoutFlags.All);
+        // Overlay on the dice panel
+        _dicePanel.Add(label, 0, 0);
 
         // Animate: scale font from tiny to ~1/3 screen height then fade out
         double targetSize = Math.Max(Height / 3, 120);
@@ -673,7 +632,7 @@ public partial class GamePage : ContentPage
         await Task.Delay((int)growMs);
 
         await label.FadeTo(0, fadeMs, Easing.CubicIn);
-        _diceTable.Remove(label);
+        _dicePanel.Remove(label);
     }
 
     private async void OnGameOver()
