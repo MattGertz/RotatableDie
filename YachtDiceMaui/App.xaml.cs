@@ -1,4 +1,6 @@
-﻿namespace YachtDiceMaui;
+﻿using YachtDiceMaui.Views;
+
+namespace YachtDiceMaui;
 
 public partial class App : Application
 {
@@ -9,7 +11,7 @@ public partial class App : Application
 
 	protected override Window CreateWindow(IActivationState? activationState)
 	{
-		var window = new Window(new AppShell());
+		var window = new Window(new SplashPage());
 		Services.PlatformHelpers.ConfigureWindow(window);
 		return window;
 	}

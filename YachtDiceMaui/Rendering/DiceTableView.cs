@@ -517,25 +517,30 @@ public class DiceTableView : SKCanvasView
 
     /// <summary>
     /// Simple hit test: project each die center, find closest to tap within threshold.
+    /// Threshold is based on the projected die size so it works across screen densities.
     /// </summary>
     private int HitTestDie(SKPoint tapPoint)
     {
         if (_camera == null) return -1;
 
-        float bestDist = 40f; // max tap distance in pixels (on the SkiaSharp canvas, scaled)
+        float bestDist = float.MaxValue;
         int bestIndex = -1;
-
-        // Account for display density — tapPoint is in device pixels, projection is in canvas pixels
-        // SKCanvasView handles this via the scale factor already in info.Width/Height
 
         for (int i = 0; i < 5; i++)
         {
             var state = _physics.GetDieState(i);
-            var (sx, sy) = _camera.Project(state.Position);
-            float dx = tapPoint.X - sx;
-            float dy = tapPoint.Y - sy;
+            var (cx, cy) = _camera.Project(state.Position);
+
+            // Compute screen-space die radius by projecting an offset point
+            var offset = state.Position + new Vector3(0.5f, 0, 0); // DieHalfSize = 0.5
+            var (ox, _) = _camera.Project(offset);
+            float dieScreenRadius = MathF.Abs(ox - cx);
+            float threshold = MathF.Max(dieScreenRadius * 1.4f, 20f); // generous tap area
+
+            float dx = tapPoint.X - cx;
+            float dy = tapPoint.Y - cy;
             float dist = MathF.Sqrt(dx * dx + dy * dy);
-            if (dist < bestDist)
+            if (dist < threshold && dist < bestDist)
             {
                 bestDist = dist;
                 bestIndex = i;
