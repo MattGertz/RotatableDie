@@ -26,22 +26,48 @@ public partial class GamePage : ContentPage
 
     // Right panel - scorecard
     private Grid _scorecardPanel = null!;
-    private Entry _playerNameEntry = null!;
+    private Label _playerNameLabel = null!;
     private Grid _scorecardGrid = null!;
+
+    // Services
+    private readonly SoundService _sound;
 
     // State
     private bool _isLandscape;
+    private bool _diceRolling;
+    private CancellationTokenSource? _bounceSoundCts;
     private readonly Random _tableRng = new();
 
-    public GamePage()
+    public GamePage(SoundService sound)
     {
+        _sound = sound;
         InitializeComponent();
+        LoadPersistedSettings();
         BuildUI();
         _vm.DiceChanged += OnDiceChanged;
         _vm.ScorecardChanged += OnScorecardChanged;
         _vm.GameOver += OnGameOver;
         _vm.YachtDetected += OnYachtDetected;
+        // Bounce sounds are played via a random timer during rolling (see StartBounceSounds/StopBounceSounds)
         SizeChanged += OnPageSizeChanged;
+        _ = _sound.PreloadAsync();
+    }
+
+    private void LoadPersistedSettings()
+    {
+        _vm.PlayerName = AppSettings.PlayerName;
+        _sound.Enabled = AppSettings.SoundEnabled;
+
+        int dieIdx = AppSettings.DieColorIndex;
+        if (dieIdx >= 0 && dieIdx < DiceAppearance.ColorOptions.Length)
+            _appearance.SetColor(DiceAppearance.ColorOptions[dieIdx].Color);
+
+        int pipIdx = AppSettings.PipColorIndex;
+        if (pipIdx >= 0 && pipIdx < DiceAppearance.PipColorOptions.Length)
+            _appearance.SetPipColor(DiceAppearance.PipColorOptions[pipIdx].Color);
+
+        _appearance.SetUseNumbers(AppSettings.UseNumbers);
+        _appearance.SetTranslucent(AppSettings.Translucent);
     }
 
     private void BuildUI()
@@ -80,7 +106,7 @@ public partial class GamePage : ContentPage
         AddMenuButton("New Triple Game", OnNewTripleGame, row++);
         row++; // skip the 10px spacer row
         AddMenuButton("Stats", OnStats, row++);
-        AddMenuButton("Dice Skins", OnDiceSkins, row++);
+        AddMenuButton("Options", OnOptions, row++);
         AddMenuButton("Rules", OnRules, row++);
         AddMenuButton("About", OnAbout, row++);
         row++; // flex spacer
@@ -171,17 +197,17 @@ public partial class GamePage : ContentPage
             },
         };
 
-        _playerNameEntry = new Entry
+        _playerNameLabel = new Label
         {
             Text = _vm.PlayerName,
             FontSize = 16,
             FontAttributes = FontAttributes.Bold,
             TextColor = Colors.White,
-            BackgroundColor = Colors.Transparent,
             HorizontalTextAlignment = TextAlignment.Center,
+            VerticalTextAlignment = TextAlignment.Center,
+            Padding = new Thickness(0, 6),
         };
-        _playerNameEntry.TextChanged += (_, e) => _vm.PlayerName = e.NewTextValue;
-        _scorecardPanel.Add(_playerNameEntry, 0, 0);
+        _scorecardPanel.Add(_playerNameLabel, 0, 0);
 
         _scorecardGrid = new Grid();
         var scrollView = new ScrollView { Content = _scorecardGrid };
@@ -495,7 +521,13 @@ public partial class GamePage : ContentPage
         _vm.Roll();
 
         // Start physics roll animation
-        _diceTableView.Roll(heldIndices);
+        int forcedValue = 0;
+#if DEBUG
+        forcedValue = PlatformHelpers.GetPressedNumber();
+#endif
+        _diceRolling = true;
+        StartBounceSounds();
+        _diceTableView.Roll(heldIndices, forcedValue);
     }
 
     /// <summary>
@@ -504,6 +536,9 @@ public partial class GamePage : ContentPage
     /// </summary>
     private void OnPhysicsSettled()
     {
+        _diceRolling = false;
+        StopBounceSounds();
+
         // Read settled face values from physics into the ViewModel
         for (int i = 0; i < ScoreCalculator.NumDice; i++)
         {
@@ -546,7 +581,8 @@ public partial class GamePage : ContentPage
     private void OnDieTapped(int index)
     {
         if (_vm.RollNumber == 0) return; // Can't hold before first roll
-        if (!_vm.CanScore) return; // Don't allow hold during animation
+        if (_diceRolling) return; // Don't allow hold during animation
+        if (!_vm.CanScore) return;
 
         if (_diceTableView.IsHeld(index))
         {
@@ -559,13 +595,39 @@ public partial class GamePage : ContentPage
             _vm.Dice[index].IsHeld = true;
         }
 
+        _sound.PlayToggle();
         UpdateRollButtonState();
+    }
+
+    private void StartBounceSounds()
+    {
+        StopBounceSounds();
+        _bounceSoundCts = new CancellationTokenSource();
+        var ct = _bounceSoundCts.Token;
+        _ = Task.Run(async () =>
+        {
+            var rng = new Random();
+            while (!ct.IsCancellationRequested)
+            {
+                await Task.Delay(rng.Next(40, 180), ct).ConfigureAwait(false);
+                MainThread.BeginInvokeOnMainThread(() => _sound.PlayBounce());
+            }
+        }, ct);
+    }
+
+    private void StopBounceSounds()
+    {
+        _bounceSoundCts?.Cancel();
+        _bounceSoundCts?.Dispose();
+        _bounceSoundCts = null;
     }
 
     private async Task OnScoreCellTapped(ScoreCategory category, int column)
     {
         if (_vm.TryScoreCategory(category, column))
         {
+            _sound.PlayScore();
+
             // Reset the 3D dice table to starting positions
             _diceTableView.ResetToStart();
 
@@ -577,9 +639,13 @@ public partial class GamePage : ContentPage
         await Task.CompletedTask;
     }
 
-    private async void OnDiceSkins(object? sender, EventArgs e)
+    private async void OnOptions(object? sender, EventArgs e)
     {
-        await Navigation.PushModalAsync(new DiceSkinsPage(_appearance));
+        await Navigation.PushModalAsync(new OptionsPage(_appearance, _sound, _vm.PlayerName, name =>
+        {
+            _vm.PlayerName = name;
+            _playerNameLabel.Text = name;
+        }));
     }
 
     private async void OnRules(object? sender, EventArgs e)
@@ -631,6 +697,8 @@ public partial class GamePage : ContentPage
 
     private async void OnYachtDetected()
     {
+        _sound.PlayApplause();
+
         var label = new Label
         {
             Text = "YACHT!",
@@ -640,6 +708,8 @@ public partial class GamePage : ContentPage
             HorizontalOptions = LayoutOptions.Center,
             VerticalOptions = LayoutOptions.Center,
             HorizontalTextAlignment = TextAlignment.Center,
+            LineBreakMode = LineBreakMode.NoWrap,
+            MaxLines = 1,
             Shadow = new Shadow
             {
                 Brush = new SolidColorBrush(Colors.OrangeRed),
@@ -671,11 +741,54 @@ public partial class GamePage : ContentPage
         string mode = _vm.CurrentMode == GameMode.Triple ? "Triple Yacht" : "Yacht";
         int finalScore = sc.GetGrandTotal();
 
-        // Save high score
-        HighScoreStore.TryAdd(_vm.CurrentMode, sc.PlayerName, finalScore);
+        // Check if this is a new high score
+        bool isNewHighScore = HighScoreStore.TryAdd(_vm.CurrentMode, sc.PlayerName, finalScore);
+
+        if (isNewHighScore)
+        {
+            _sound.PlayApplause();
+            await ShowCelebration("New High Score!");
+        }
 
         await DisplayAlert("Game Over!",
-            $"{mode} complete!\n\nFinal Score: {finalScore}", "OK");
+            $"{mode} complete!\n\nFinal Score: {finalScore}" +
+            (isNewHighScore ? "\n\nNew High Score!" : ""), "OK");
+    }
+
+    private async Task ShowCelebration(string text)
+    {
+        var label = new Label
+        {
+            Text = text,
+            FontSize = 1,
+            FontAttributes = FontAttributes.Bold,
+            TextColor = Colors.Gold,
+            HorizontalOptions = LayoutOptions.Center,
+            VerticalOptions = LayoutOptions.Center,
+            HorizontalTextAlignment = TextAlignment.Center,
+            LineBreakMode = LineBreakMode.NoWrap,
+            MaxLines = 1,
+            Shadow = new Shadow
+            {
+                Brush = new SolidColorBrush(Colors.OrangeRed),
+                Offset = new Point(0, 0),
+                Radius = 20,
+            },
+        };
+
+        _dicePanel.Add(label, 0, 0);
+
+        double targetSize = Math.Max(Height / 4, 80);
+        uint growMs = 600;
+        uint fadeMs = 400;
+
+        var growAnim = new Animation(v => label.FontSize = v, 1, targetSize, Easing.CubicOut);
+        growAnim.Commit(label, "CelebGrow", length: growMs);
+
+        await Task.Delay((int)growMs);
+
+        await label.FadeTo(0, fadeMs, Easing.CubicIn);
+        _dicePanel.Remove(label);
     }
 
     private async void OnStats(object? sender, EventArgs e)

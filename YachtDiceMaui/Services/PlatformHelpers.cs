@@ -10,4 +10,7 @@ public static partial class PlatformHelpers
 
     /// <summary>Whether the platform should show an Exit button.</summary>
     public static partial bool SupportsExitButton();
+
+    /// <summary>Returns 1-6 if a number key is currently held down, or 0 if none.</summary>
+    public static partial int GetPressedNumber();
 }

@@ -90,6 +90,7 @@ public class SimpleDicePhysics : IDicePhysics
 
     public void Step(float dt)
     {
+
         // Phase 1: Integrate motion for active dice
         for (int i = 0; i < DiceCount; i++)
         {
@@ -352,6 +353,31 @@ public class SimpleDicePhysics : IDicePhysics
         var d = _dice[index];
         if (d.IsHeld) return;
         d.Position += delta;
+    }
+
+    public void ForceValue(int index, int value)
+    {
+        var d = _dice[index];
+        if (d.IsHeld) return;
+        // Find the local-space normal for the desired face value
+        Vector3 targetNormal = Vector3.UnitY;
+        foreach (var (normal, v) in FaceMap)
+        {
+            if (v == value) { targetNormal = normal; break; }
+        }
+        // Build a rotation that maps targetNormal -> world +Y (up)
+        Vector3 localRight;
+        if (MathF.Abs(Vector3.Dot(targetNormal, Vector3.UnitZ)) < 0.99f)
+            localRight = Vector3.Normalize(Vector3.Cross(targetNormal, Vector3.UnitZ));
+        else
+            localRight = Vector3.Normalize(Vector3.Cross(targetNormal, Vector3.UnitX));
+        var localForward = Vector3.Cross(localRight, targetNormal);
+        var mat = new Matrix4x4(
+            localRight.X, targetNormal.X, localForward.X, 0,
+            localRight.Y, targetNormal.Y, localForward.Y, 0,
+            localRight.Z, targetNormal.Z, localForward.Z, 0,
+            0, 0, 0, 1);
+        d.Rotation = Quaternion.Normalize(Quaternion.CreateFromRotationMatrix(mat));
     }
 
     /// <summary>

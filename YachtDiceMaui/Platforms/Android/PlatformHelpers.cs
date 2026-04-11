@@ -7,4 +7,6 @@ public static partial class PlatformHelpers
     public static partial void ConfigureWindow(Window window) { }
 
     public static partial bool SupportsExitButton() => false;
+
+    public static partial int GetPressedNumber() => 0;
 }

@@ -29,6 +29,9 @@ public class DiceTableView : SKCanvasView
     // Hold state: which dice are held (managed externally by GamePage)
     private readonly bool[] _held = new bool[5];
 
+    // Debug: if set to 1-6, force all unheld dice to this value after settling
+    private int _forcedValue;
+
     // Callback when physics settles after a roll
     public event Action? DiceSettled;
 
@@ -58,9 +61,11 @@ public class DiceTableView : SKCanvasView
 
     /// <summary>
     /// Roll the unheld dice. Starts the physics animation loop.
+    /// If forcedValue is 1-6 (debug), all unheld dice will show that value after settling.
     /// </summary>
-    public void Roll(IReadOnlyList<int> heldIndices)
+    public void Roll(IReadOnlyList<int> heldIndices, int forcedValue = 0)
     {
+        _forcedValue = forcedValue;
         _physics.Roll(heldIndices);
         StartAnimation();
     }
@@ -130,21 +135,44 @@ public class DiceTableView : SKCanvasView
     }
 
     /// <summary>
-    /// Set a die as unheld. Moves it back onto the table in a random-ish position.
+    /// Set a die as unheld. Moves it back onto the table in a non-overlapping position.
     /// </summary>
     public void SetUnheld(int index)
     {
         _held[index] = false;
 
-        // Move the die back onto the table at a scattered position
+        // Find a position that doesn't overlap other table dice
         var rng = new Random(index * 31 + Environment.TickCount);
-        float x = (rng.NextSingle() - 0.5f) * (TrayWidth - 2f);
-        float z = (rng.NextSingle() - 0.5f) * (TrayDepth - 2f);
+        float x, z;
+        const float minSep = 1.3f; // slightly more than die width (1.0) for visual clearance
+        int attempts = 0;
+        do
+        {
+            x = (rng.NextSingle() - 0.5f) * (TrayWidth - 2f);
+            z = (rng.NextSingle() - 0.5f) * (TrayDepth - 2f);
+            attempts++;
+        } while (attempts < 30 && IsOverlappingTableDie(index, x, z, minSep));
+
         _physics.SetHeld(index, new System.Numerics.Vector3(x, 0.5f, z));
         _physics.SetUnheld(index);
 
         RepackTray(); // reposition remaining held dice to fill gaps
         InvalidateSurface();
+    }
+
+    private bool IsOverlappingTableDie(int excludeIndex, float x, float z, float minSep)
+    {
+        float minSepSq = minSep * minSep;
+        for (int i = 0; i < 5; i++)
+        {
+            if (i == excludeIndex || _held[i]) continue;
+            var pos = _physics.GetDieState(i).Position;
+            float dx = pos.X - x;
+            float dz = pos.Z - z;
+            if (dx * dx + dz * dz < minSepSq)
+                return true;
+        }
+        return false;
     }
 
     /// <summary>
@@ -214,6 +242,16 @@ public class DiceTableView : SKCanvasView
 
         if (_physics.AreSettled)
         {
+            if (_forcedValue >= 1 && _forcedValue <= 6)
+            {
+                for (int i = 0; i < 5; i++)
+                {
+                    if (!_held[i])
+                        _physics.ForceValue(i, _forcedValue);
+                }
+                _forcedValue = 0;
+                InvalidateSurface();
+            }
             StopAnimation();
             DiceSettled?.Invoke();
         }

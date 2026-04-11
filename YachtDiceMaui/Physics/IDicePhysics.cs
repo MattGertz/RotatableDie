@@ -52,6 +52,12 @@ public interface IDicePhysics
     /// Nudge a die's position by the given delta (for visibility corrections).
     /// </summary>
     void NudgeDie(int index, Vector3 delta);
+
+    /// <summary>
+    /// Force a die to show the given face value (1-6) by rotating it appropriately.
+    /// </summary>
+    void ForceValue(int index, int value);
+
 }
 
 public record struct DieState(Vector3 Position, Quaternion Rotation, bool IsHeld);
