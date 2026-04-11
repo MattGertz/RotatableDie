@@ -10,10 +10,7 @@ public partial class App : Application
 	protected override Window CreateWindow(IActivationState? activationState)
 	{
 		var window = new Window(new AppShell());
-#if WINDOWS
-		window.Width = 1100;
-		window.Height = 650;
-#endif
+		Services.PlatformHelpers.ConfigureWindow(window);
 		return window;
 	}
 }

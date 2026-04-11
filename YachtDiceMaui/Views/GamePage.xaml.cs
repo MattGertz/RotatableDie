@@ -3,6 +3,7 @@ using YachtDiceMaui.Models;
 using YachtDiceMaui.Data;
 using YachtDiceMaui.Physics;
 using YachtDiceMaui.Rendering;
+using YachtDiceMaui.Services;
 
 namespace YachtDiceMaui.Views;
 
@@ -84,9 +85,8 @@ public partial class GamePage : ContentPage
         AddMenuButton("About", OnAbout, row++);
         row++; // flex spacer
 
-#if WINDOWS
-        AddMenuButton("Exit", OnExit, row);
-#endif
+        if (PlatformHelpers.SupportsExitButton())
+            AddMenuButton("Exit", OnExit, row);
     }
 
     private void AddMenuButton(string text, EventHandler handler, int row)
@@ -459,6 +459,8 @@ public partial class GamePage : ContentPage
         _diceTableView.ResetToStart();
         _rollButton.IsEnabled = true;
         _rollButton.IsVisible = true;
+        _rollButton.BackgroundColor = Color.FromArgb("#0F3460");
+        _rollButton.TextColor = Colors.White;
     }
 
     private async void OnNewTripleGame(object? sender, EventArgs e)
@@ -472,6 +474,8 @@ public partial class GamePage : ContentPage
         _diceTableView.ResetToStart();
         _rollButton.IsEnabled = true;
         _rollButton.IsVisible = true;
+        _rollButton.BackgroundColor = Color.FromArgb("#0F3460");
+        _rollButton.TextColor = Colors.White;
     }
 
     private void OnRollClicked(object? sender, EventArgs e)
@@ -507,7 +511,7 @@ public partial class GamePage : ContentPage
         }
 
         // Re-enable roll button if rolls remain
-        _rollButton.IsEnabled = _vm.CanRoll;
+        UpdateRollButtonState();
 
         // Update scorecard with new values
         _vm.NotifyScorecardChanged();
@@ -516,6 +520,27 @@ public partial class GamePage : ContentPage
         int[] values = _vm.GetCurrentValues();
         if (ScoreCalculator.IsYacht(values) && _vm.Scorecard?.HasValidYachtPlacement(values) == true)
             _vm.RaiseYachtDetected();
+    }
+
+    private void UpdateRollButtonState()
+    {
+        if (!_vm.CanRoll)
+        {
+            _rollButton.IsEnabled = false;
+            _rollButton.BackgroundColor = Color.FromArgb("#555555");
+            _rollButton.TextColor = Color.FromArgb("#999999");
+            return;
+        }
+
+        // Disable if all dice are held — nothing to roll
+        bool allHeld = true;
+        for (int i = 0; i < ScoreCalculator.NumDice; i++)
+        {
+            if (!_diceTableView.IsHeld(i)) { allHeld = false; break; }
+        }
+        _rollButton.IsEnabled = !allHeld;
+        _rollButton.BackgroundColor = allHeld ? Color.FromArgb("#555555") : Color.FromArgb("#0F3460");
+        _rollButton.TextColor = allHeld ? Color.FromArgb("#999999") : Colors.White;
     }
 
     private void OnDieTapped(int index)
@@ -533,6 +558,8 @@ public partial class GamePage : ContentPage
             _diceTableView.SetHeld(index, 0); // slot is computed internally
             _vm.Dice[index].IsHeld = true;
         }
+
+        UpdateRollButtonState();
     }
 
     private async Task OnScoreCellTapped(ScoreCategory category, int column)
@@ -541,6 +568,11 @@ public partial class GamePage : ContentPage
         {
             // Reset the 3D dice table to starting positions
             _diceTableView.ResetToStart();
+
+            // Restore roll button appearance for the new turn
+            _rollButton.IsEnabled = true;
+            _rollButton.BackgroundColor = Color.FromArgb("#0F3460");
+            _rollButton.TextColor = Colors.White;
         }
         await Task.CompletedTask;
     }
@@ -573,7 +605,6 @@ public partial class GamePage : ContentPage
         await DisplayAlert("About", "Matt's Yacht v1.0\nA solitaire Yacht dice game.", "OK");
     }
 
-#if WINDOWS
     private async void OnExit(object? sender, EventArgs e)
     {
         if (_vm.GameInProgress)
@@ -583,7 +614,6 @@ public partial class GamePage : ContentPage
         }
         Application.Current?.Quit();
     }
-#endif
 
     // ── VM Event Handlers ────────────────────────────────────────
 
