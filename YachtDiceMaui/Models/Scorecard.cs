@@ -63,6 +63,14 @@ public class Scorecard
         return ScoreResult.Scored;
     }
 
+    public void UndoScore(ScoreCategory category, int column, bool wasYachtBonus)
+    {
+        ValidateColumn(column);
+        _scores[(int)category, column] = null;
+        if (wasYachtBonus)
+            _yachtBonusCount[column]--;
+    }
+
     public int? GetScore(ScoreCategory category, int column = 0)
     {
         ValidateColumn(column);

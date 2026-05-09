@@ -189,6 +189,56 @@ public class DiceTableView : SKCanvasView
 
     public bool IsHeld(int index) => _held[index];
 
+    /// <summary>
+    /// Restore dice to specific values and held states (used by undo).
+    /// </summary>
+    public void RestoreDice(int[] values, bool[] held)
+    {
+        StopAnimation();
+
+        // First, place all dice on the table with their values
+        float radius = 2.0f;
+        for (int i = 0; i < 5; i++)
+        {
+            float angle = -MathF.PI / 2f + i * (2f * MathF.PI / 5f);
+            float x = radius * MathF.Cos(angle);
+            float z = radius * MathF.Sin(angle);
+            _physics.SetHeld(i, new Vector3(x, 0.5f, z));
+            _physics.SetUnheld(i);
+            _physics.ForceValue(i, values[i]);
+            _held[i] = false;
+        }
+
+        // Now move held dice to the tray
+        for (int i = 0; i < 5; i++)
+        {
+            if (held[i])
+            {
+                _held[i] = true;
+            }
+        }
+        if (_held.Any(h => h))
+            RepackTray();
+
+        // Force values again for held dice (ForceValue skips held, so set after positioning)
+        for (int i = 0; i < 5; i++)
+        {
+            if (_held[i])
+            {
+                // Temporarily unhold, force value, re-hold
+                _physics.SetUnheld(i);
+                _physics.ForceValue(i, values[i]);
+            }
+        }
+        // Re-hold and repack
+        if (_held.Any(h => h))
+        {
+            RepackTray();
+        }
+
+        InvalidateSurface();
+    }
+
     private void PlaceDiceInPentagon()
     {
         // Place dice in a pentagon on the floor

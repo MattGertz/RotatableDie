@@ -28,6 +28,7 @@ public partial class GamePage : ContentPage
     private Grid _scorecardPanel = null!;
     private Label _playerNameLabel = null!;
     private Grid _scorecardGrid = null!;
+    private Button _undoButton = null!;
 
     // Services
     private readonly SoundService _sound;
@@ -48,6 +49,7 @@ public partial class GamePage : ContentPage
         _vm.ScorecardChanged += OnScorecardChanged;
         _vm.GameOver += OnGameOver;
         _vm.YachtDetected += OnYachtDetected;
+        _vm.UndoStateChanged += OnUndoStateChanged;
         // Bounce sounds are played via a random timer during rolling (see StartBounceSounds/StopBounceSounds)
         SizeChanged += OnPageSizeChanged;
         _ = _sound.PreloadAsync();
@@ -178,7 +180,30 @@ public partial class GamePage : ContentPage
             IsVisible = false,
         };
         _rollButton.Clicked += OnRollClicked;
-        _dicePanel.Add(_rollButton, 0, 1);
+
+        // Undo button
+        _undoButton = new Button
+        {
+            Text = "Undo",
+            FontSize = 16,
+            BackgroundColor = Color.FromArgb("#8B4513"),
+            TextColor = Colors.White,
+            CornerRadius = 6,
+            HeightRequest = 50,
+            HorizontalOptions = LayoutOptions.Center,
+            Padding = new Thickness(20, 0),
+            IsVisible = false,
+        };
+        _undoButton.Clicked += OnUndoClicked;
+
+        var buttonRow = new HorizontalStackLayout
+        {
+            HorizontalOptions = LayoutOptions.Center,
+            Spacing = 10,
+        };
+        buttonRow.Children.Add(_rollButton);
+        buttonRow.Children.Add(_undoButton);
+        _dicePanel.Add(buttonRow, 0, 1);
     }
 
     // ── Scorecard Panel (Right) ──────────────────────────────────
@@ -637,6 +662,28 @@ public partial class GamePage : ContentPage
             _rollButton.TextColor = Colors.White;
         }
         await Task.CompletedTask;
+    }
+
+    private void OnUndoClicked(object? sender, EventArgs e)
+    {
+        if (!_vm.CanUndo) return;
+
+        // Capture the dice state before undo restores it
+        // (Undo() restores Dice[].Value and Dice[].IsHeld)
+        _vm.Undo();
+
+        // Restore the 3D table to show the dice with their pre-score values and held states
+        int[] values = _vm.GetCurrentValues();
+        bool[] held = _vm.Dice.Select(d => d.IsHeld).ToArray();
+        _diceTableView.RestoreDice(values, held);
+
+        // Update roll button state
+        UpdateRollButtonState();
+    }
+
+    private void OnUndoStateChanged()
+    {
+        _undoButton.IsVisible = _vm.CanUndo && _vm.GameInProgress;
     }
 
     private async void OnOptions(object? sender, EventArgs e)

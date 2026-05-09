@@ -16,6 +16,13 @@ public class GameViewModel : INotifyPropertyChanged
     private bool _canScore;
     private GameMode _currentMode;
 
+    // Undo state
+    private record UndoState(
+        ScoreCategory Category, int Column, bool WasYachtBonus,
+        int[] DiceValues, bool[] DiceHeld,
+        int RollNum, bool CouldRoll, bool CouldScore, string ButtonText);
+    private UndoState? _undoState;
+
     public ObservableCollection<Die> Dice { get; } = new();
     public Scorecard? Scorecard => _scorecard;
 
@@ -67,6 +74,9 @@ public class GameViewModel : INotifyPropertyChanged
     public event Action? ScorecardChanged;
     public event Action? GameOver;
     public event Action? YachtDetected;
+    public event Action? UndoStateChanged;
+
+    public bool CanUndo => _undoState != null;
 
     public GameViewModel()
     {
@@ -83,6 +93,8 @@ public class GameViewModel : INotifyPropertyChanged
         CanScore = false;
         GameInProgress = true;
         RollButtonText = "Roll! (1st try)";
+        _undoState = null;
+        UndoStateChanged?.Invoke();
 
         foreach (var die in Dice)
             die.Reset();
@@ -95,6 +107,9 @@ public class GameViewModel : INotifyPropertyChanged
     public void Roll()
     {
         if (!CanRoll || _scorecard == null) return;
+
+        _undoState = null;
+        UndoStateChanged?.Invoke();
 
         RollNumber++;
         // Don't randomize dice values here — physics engine handles rolling.
@@ -131,9 +146,22 @@ public class GameViewModel : INotifyPropertyChanged
         if (_scorecard == null || !CanScore) return false;
 
         int[] dice = GetCurrentValues();
+        bool[] held = Dice.Select(d => d.IsHeld).ToArray();
+
+        // Save undo state before scoring
+        var savedUndo = new UndoState(
+            category, column, false,
+            (int[])dice.Clone(), held,
+            RollNumber, CanRoll, CanScore, RollButtonText);
+
         var result = _scorecard.TryScore(category, column, dice);
         if (result == Scorecard.ScoreResult.Failed)
             return false;
+
+        // Record whether it was a yacht bonus
+        bool wasYachtBonus = result == Scorecard.ScoreResult.YachtBonus;
+        _undoState = savedUndo with { WasYachtBonus = wasYachtBonus };
+        UndoStateChanged?.Invoke();
 
         // Reset for next turn
         RollNumber = 0;
@@ -156,6 +184,36 @@ public class GameViewModel : INotifyPropertyChanged
             GameOver?.Invoke();
         }
 
+        return true;
+    }
+
+    public bool Undo()
+    {
+        if (_undoState == null || _scorecard == null) return false;
+
+        var u = _undoState;
+        _undoState = null;
+
+        // Reverse the score
+        _scorecard.UndoScore(u.Category, u.Column, u.WasYachtBonus);
+
+        // Restore turn state
+        RollNumber = u.RollNum;
+        CanRoll = u.CouldRoll;
+        CanScore = u.CouldScore;
+        RollButtonText = u.ButtonText;
+        GameInProgress = true;
+
+        // Restore dice values and held states
+        for (int i = 0; i < Dice.Count; i++)
+        {
+            Dice[i].Value = u.DiceValues[i];
+            Dice[i].IsHeld = u.DiceHeld[i];
+        }
+
+        UndoStateChanged?.Invoke();
+        ScorecardChanged?.Invoke();
+        DiceChanged?.Invoke();
         return true;
     }
 
