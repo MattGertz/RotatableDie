@@ -173,7 +173,7 @@ public partial class GamePage : ContentPage
             CornerRadius = 4,
             HeightRequest = 34,
             Padding = new Thickness(10, 0),
-            Margin = new Thickness(2),
+            Margin = new Thickness(2, 4),
         };
         btn.Clicked += handler;
         _portraitMenuBar.Children.Add(btn);
