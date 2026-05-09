@@ -17,6 +17,9 @@ public partial class GamePage : ContentPage
     // Left panel (uses Grid internally so Exit stays at bottom)
     private Grid _menuPanel = null!;
 
+    // Portrait menu bar (horizontal button layout)
+    private FlexLayout _portraitMenuBar = null!;
+
     // Center panel - dice table + tray
     private Grid _dicePanel = null!;
     private DiceTableView _diceTableView = null!;
@@ -75,6 +78,7 @@ public partial class GamePage : ContentPage
     private void BuildUI()
     {
         BuildMenuPanel();
+        BuildPortraitMenuBar();
         BuildDicePanel();
         BuildScorecardPanel();
         ApplyLayout();
@@ -132,6 +136,47 @@ public partial class GamePage : ContentPage
         };
         btn.Clicked += handler;
         _menuPanel.Add(btn, 0, row);
+    }
+
+    // ── Portrait Menu Bar (Horizontal) ───────────────────────────
+
+    private void BuildPortraitMenuBar()
+    {
+        _portraitMenuBar = new FlexLayout
+        {
+            Wrap = Microsoft.Maui.Layouts.FlexWrap.Wrap,
+            JustifyContent = Microsoft.Maui.Layouts.FlexJustify.Center,
+            AlignContent = Microsoft.Maui.Layouts.FlexAlignContent.Start,
+            BackgroundColor = Color.FromArgb("#16213E"),
+            Padding = new Thickness(4),
+        };
+
+        AddPortraitMenuButton("New Single", OnNewSingleGame);
+        AddPortraitMenuButton("New Triple", OnNewTripleGame);
+        AddPortraitMenuButton("Stats", OnStats);
+        AddPortraitMenuButton("Options", OnOptions);
+        AddPortraitMenuButton("Rules", OnRules);
+        AddPortraitMenuButton("About", OnAbout);
+
+        if (PlatformHelpers.SupportsExitButton())
+            AddPortraitMenuButton("Exit", OnExit);
+    }
+
+    private void AddPortraitMenuButton(string text, EventHandler handler)
+    {
+        var btn = new Button
+        {
+            Text = text,
+            FontSize = 12,
+            BackgroundColor = Color.FromArgb("#0F3460"),
+            TextColor = Colors.White,
+            CornerRadius = 4,
+            HeightRequest = 34,
+            Padding = new Thickness(10, 0),
+            Margin = new Thickness(2),
+        };
+        btn.Clicked += handler;
+        _portraitMenuBar.Children.Add(btn);
     }
 
     // ── Dice Panel (Center) ──────────────────────────────────────
@@ -449,6 +494,7 @@ public partial class GamePage : ContentPage
     {
         // Detach panels from any previous parent
         DetachFromParent(_menuPanel);
+        DetachFromParent(_portraitMenuBar);
         DetachFromParent(_dicePanel);
         DetachFromParent(_scorecardPanel);
 
@@ -468,24 +514,14 @@ public partial class GamePage : ContentPage
         }
         else
         {
-            // Portrait: [Menu + Scorecard] on top, [Dice] on bottom
-            _rootGrid.RowDefinitions.Add(new RowDefinition(GridLength.Star));
-            _rootGrid.RowDefinitions.Add(new RowDefinition(GridLength.Star));
+            // Portrait: [Menu bar] on top, [Dice] in middle, [Scorecard] at bottom
+            _rootGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));    // menu bar
+            _rootGrid.RowDefinitions.Add(new RowDefinition(GridLength.Star));    // dice table
+            _rootGrid.RowDefinitions.Add(new RowDefinition(GridLength.Star));    // scorecard
 
-            var topRow = new Grid
-            {
-                ColumnDefinitions =
-                {
-                    new ColumnDefinition(new GridLength(170)),
-                    new ColumnDefinition(GridLength.Star),
-                },
-                ColumnSpacing = 0,
-            };
-            topRow.Add(_menuPanel, 0, 0);
-            topRow.Add(_scorecardPanel, 1, 0);
-
-            _rootGrid.Add(topRow, 0, 0);
+            _rootGrid.Add(_portraitMenuBar, 0, 0);
             _rootGrid.Add(_dicePanel, 0, 1);
+            _rootGrid.Add(_scorecardPanel, 0, 2);
         }
 
         Content = _rootGrid;
