@@ -171,9 +171,9 @@ public partial class GamePage : ContentPage
             BackgroundColor = Color.FromArgb("#0F3460"),
             TextColor = Colors.White,
             CornerRadius = 4,
-            HeightRequest = 34,
+            HeightRequest = 48,
             Padding = new Thickness(10, 0),
-            Margin = new Thickness(2, 4),
+            Margin = new Thickness(3, 2),
         };
         btn.Clicked += handler;
         _portraitMenuBar.Children.Add(btn);
