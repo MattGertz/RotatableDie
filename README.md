@@ -39,8 +39,9 @@ effects. Built with .NET 9 MAUI, SkiaSharp, and Plugin.Maui.Audio.
   display, and translucency — all accessible from the Options page
 - **High Scores**: Persistent high score tracking for both game modes
 - **YACHT! Celebration**: Animated gold text celebration when you roll five of a kind
+- **Undo**: Undo a scored category any time before the next roll
 - **Splash Screen**: Two-layer splash (native + in-app) for a smooth launch experience
-- **Landscape Lock**: Optimized for landscape orientation on all devices
+- **Orientation Support**: Adaptive layout for both landscape and portrait
 - **Cross-Platform**: Runs on Windows 10+ and Android 5.0+
 
 ### How to Play
@@ -76,6 +77,21 @@ The installer is output to `Setup/MattsYachtSetup.exe`.
 dotnet publish -f net9.0-android -c Release
 ```
 The signed APK is in `bin/Release/net9.0-android/publish/`.
+A pre-built APK (`mattsyacht.apk`) is also available at the repository root.
+
+### Installing the APK on Android (Sideloading)
+
+Since this app is not distributed through the Google Play Store, you need to
+temporarily allow installation from unknown sources:
+
+1. Transfer `mattsyacht.apk` to your Android device
+2. Open **Settings → Apps → Special app access → Install unknown apps**
+   (path may vary by device/Android version)
+3. Enable the permission for the app you'll use to open the APK (e.g., Files,
+   Chrome, or your file manager)
+4. Open the APK file on the device and tap **Install**
+5. After installation, you can disable the "Install unknown apps" permission
+   for security
 
 ### Technical Details
 
