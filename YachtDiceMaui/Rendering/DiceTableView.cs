@@ -57,6 +57,9 @@ public class DiceTableView : SKCanvasView
 
         // Place dice in starting positions (on the floor, pentagon arrangement)
         PlaceDiceInPentagon();
+
+        // Ensure an initial paint on platforms that don't auto-repaint after construction
+        Loaded += (_, _) => InvalidateSurface();
     }
 
     /// <summary>
